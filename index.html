@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>html{color-scheme:dark;margin:0}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>CdiskTex Engine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-screen CDT splash first, then one calm column: hero with emblem, download, install, movement, tests.
+   Single committed dark look, matching the in-game splash. */
+:root {
+  --ink: #0a0b10; --panel: #11131b; --panel2: #171a24; --line: #272b3a;
+  --text: #eceef6; --mute: #9096ad; --dim: #5d6279;
+  --orange: #ff7f1f; --amber: #ffb02e; --red: #e8431a; --good: #4fd38a;
+  --display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--ink); color: var(--text); font: 16px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+}
+a { color: var(--amber); }
+a:hover { color: #ffd27a; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+.mono { font-family: var(--mono); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h2 { font-size: clamp(30px, 5vw, 42px); line-height: 1.05; }
+h3 { font-size: 22px; line-height: 1.15; }
+p { margin: 0; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--orange); }
+
+/* ---------- splash ---------- */
+#splash {
+  position: fixed; inset: 0; z-index: 50; background: radial-gradient(ellipse at 50% 38%, #151826 0%, var(--ink) 62%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 24px max(16px, env(safe-area-inset-left, 0px)); text-align: center; cursor: pointer;
+  transition: opacity .6s ease, visibility .6s;
+}
+#splash.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+#splash .emb { width: min(62vmin, 380px); height: auto; animation: rise 1s ease both; }
+.word { font-family: var(--display); font-weight: 600; line-height: .95; font-size: clamp(54px, 13vmin, 104px); letter-spacing: .005em; }
+.word b { font-weight: 600; color: var(--orange); }
+.eng { font: 500 clamp(13px, 2.3vmin, 18px)/1 var(--mono); letter-spacing: .62em; color: #b9bdd0; margin-left: .62em; }
+.sub { font: 500 clamp(10px, 1.7vmin, 13px)/1.4 var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
+.press { margin-top: 22px; font: 500 14px/1 var(--mono); letter-spacing: .24em; color: var(--text); animation: blink 1.5s ease-in-out infinite; }
+.skip { margin-top: 6px; font: 400 13px/1.4 var(--mono); color: var(--amber); background: none; border: 0; cursor: pointer; padding: 10px 14px; }
+.skip:hover { text-decoration: underline; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.spin { transform-origin: 0 0; animation: spin 60s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- page ---------- */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font: 600 22px/1 var(--display); letter-spacing: .02em; color: var(--text); text-decoration: none; }
+.brand b { color: var(--orange); font-weight: 600; }
+.brand svg { width: 34px; height: 34px; }
+nav { display: flex; gap: 6px 22px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+nav a { color: var(--mute); text-decoration: none; }
+nav a:hover { color: var(--text); }
+.lang { font: 500 12px/1 var(--mono); border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 7px 10px; border-radius: 6px; cursor: pointer; }
+.lang:hover { border-color: var(--orange); }
+
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 40px; align-items: center; padding-block: 36px 70px; }
+.hero h1 { font-size: clamp(56px, 10vw, 104px); line-height: .92; margin: 14px 0 16px; }
+.hero h1 b { color: var(--orange); font-weight: 600; }
+.hero .lede { font-size: 18px; color: #c8cbdb; max-width: 52ch; }
+.hero .emb { width: 100%; max-width: 420px; height: auto; justify-self: center; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.btn { font: 600 15px/1 var(--body); border-radius: 8px; padding: 15px 20px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: transform .12s ease, border-color .12s ease; }
+.btn:hover { border-color: var(--orange); transform: translateY(-1px); }
+.btn.main { background: linear-gradient(180deg, #ff9a3c, #f06a12); border-color: #ff9a3c; color: #1a0d03; font-size: 16px; padding: 16px 24px; }
+.btn.main:hover { background: linear-gradient(180deg, #ffab55, #ff7f1f); }
+.meta { margin-top: 16px; font: 400 13px/1.6 var(--mono); color: var(--mute); }
+#status { margin-top: 10px; min-height: 22px; font-size: 14px; color: var(--good); }
+#status.warn { color: var(--amber); }
+
+section { padding-block: 56px; border-top: 1px solid var(--line); }
+section > .wrap > h2 { margin: 12px 0 8px; }
+.intro { color: var(--mute); max-width: 62ch; margin-bottom: 28px; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; min-width: 0; }
+.card h3 { margin-bottom: 12px; }
+ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: #c8cbdb; }
+code { font: 400 .88em var(--mono); background: #1b1f2c; border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; color: #ffd7a8; }
+pre { margin: 0; background: #0d0f16; border: 1px solid var(--line); border-radius: 8px; padding: 16px; overflow-x: auto; font: 400 13.5px/1.65 var(--mono); color: #d5d8e6; }
+pre .c { color: var(--dim); }
+.note { margin-top: 18px; color: var(--mute); font-size: 15px; }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14.5px; }
+th, td { text-align: right; padding: 11px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mute); background: var(--panel2); }
+td { font-family: var(--mono); font-size: 14px; }
+td:first-child { font-family: var(--body); color: #c8cbdb; }
+tr:last-child td { border-bottom: 0; }
+
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.key { display: flex; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #c8cbdb; min-width: 0; }
+kbd { font: 500 12.5px/1 var(--mono); background: #1b1f2c; border: 1px solid #343a50; border-bottom-width: 2px; border-radius: 5px; padding: 6px 8px; color: var(--text); white-space: nowrap; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.stat .v { font: 600 40px/1 var(--display); color: var(--amber); }
+.stat .v small { font-size: 18px; color: var(--mute); font-weight: 500; }
+.stat .l { margin-top: 8px; font-size: 14px; color: var(--mute); }
+.limits { display: grid; gap: 10px; padding-left: 18px; color: #c8cbdb; }
+details { margin-top: 28px; }
+summary { cursor: pointer; color: var(--amber); font: 500 14px var(--mono); }
+textarea { width: 100%; height: 280px; margin-top: 12px; background: #0d0f16; color: #d5d8e6; border: 1px solid var(--line); border-radius: 8px; padding: 14px; font: 12.5px/1.55 var(--mono); resize: vertical; }
+footer { border-top: 1px solid var(--line); padding-block: 36px 60px; color: var(--dim); font-size: 14px; display: grid; gap: 8px; }
+
+@media (max-width: 780px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 12px 50px; }
+  .hero .emb { max-width: 300px; order: -1; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+  section { padding-block: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin, .press, #splash .emb { animation: none; }
+  html { scroll-behavior: auto; }
+  #splash { transition: none; }
+}
+</style>
+
+<div id="splash" role="dialog" aria-label="CdiskTex Engine">
+  <div id="splash-emb"></div>
+  <div class="word">Cdisk<b>Tex</b></div>
+  <div class="eng">ENGINE</div>
+  <div class="sub">Center Diskent Tex &middot; CDT &middot; v1.0.0</div>
+  <div class="press" data-i="press">PRESS ANY KEY</div>
+  <button class="skip" id="skip" type="button" data-i="skip">or go to the free download &darr;</button>
+</div>
+
+<main id="page" aria-hidden="true">
+<div class="wrap">
+  <header class="bar">
+    <a class="brand" href="#top"><span id="brand-emb"></span><span>Cdisk<b>Tex</b></span></a>
+    <nav>
+      <a href="#download" data-i="n_dl">Download</a>
+      <a href="#install" data-i="n_in">Install</a>
+      <a href="#movement" data-i="n_mv">Movement</a>
+      <a href="#tested" data-i="n_te">Tested</a>
+      <button class="lang" id="lang" type="button" aria-label="Language">RU</button>
+    </nav>
+  </header>
+
+  <div class="hero" id="top">
+    <div>
+      <div class="eyebrow" data-i="eyebrow">Free &middot; one file &middot; Godot 4</div>
+      <h1>Cdisk<b>Tex</b><br>Engine</h1>
+      <p class="lede" data-i="lede"></p>
+      <div class="cta" id="download">
+        <button class="btn main" id="dl-zip" type="button"><span data-i="b_zip">Download free (.zip)</span></button>
+        <button class="btn" id="dl-gd" type="button"><span data-i="b_gd">Only the .gd (saved as .txt)</span></button>
+        <button class="btn" id="cp" type="button"><span data-i="b_cp">Copy source</span></button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div class="meta">v1.0.0 &middot; 36 KB &middot; 947 <span data-i="lines">lines</span> &middot; Godot 4.4+ &middot; <span data-i="free">free, no sign-up</span></div>
+    </div>
+    <div id="hero-emb"></div>
+  </div>
+</div>
+
+<section id="install"><div class="wrap">
+  <div class="eyebrow" data-i="in_eye">Install</div>
+  <h2 data-i="in_h">Ready in under a minute</h2>
+  <p class="intro" data-i="in_p"></p>
+  <div class="two">
+    <div class="card">
+      <h3 data-i="a_h">A. Autoload</h3>
+      <ol>
+        <li data-i="a1"></li><li data-i="a2"></li><li data-i="a3"></li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 data-i="b_h">B. Attach once</h3>
+      <ol>
+        <li data-i="b1"></li><li data-i="b2"></li><li data-i="b3"></li>
+      </ol>
+    </div>
+  </div>
+  <p class="note" data-i="run"></p>
+</div></section>
+
+<section id="movement"><div class="wrap">
+  <div class="eyebrow" data-i="mv_eye">Movement</div>
+  <h2 data-i="mv_h">The numbers behind the feel</h2>
+  <p class="intro" data-i="mv_p"></p>
+  <div class="tbl"><table>
+    <thead><tr><th data-i="t_p">Preset</th><th>accelerate</th><th>airaccel.</th><th>friction</th><th>stopspeed</th><th>maxspeed</th><th>gravity</th><th>jump</th><th>bhop cap</th></tr></thead>
+    <tbody>
+      <tr><td>cs2</td><td>5.5</td><td>12</td><td>5.2</td><td>80</td><td>250</td><td>800</td><td>302</td><td>none</td></tr>
+      <tr><td>csgo</td><td>5.5</td><td>12</td><td>5.2</td><td>80</td><td>250</td><td>800</td><td>302</td><td>1.1&times;</td></tr>
+      <tr><td>css</td><td>5</td><td>10</td><td>4</td><td>75</td><td>250</td><td>800</td><td>302</td><td>none</td></tr>
+      <tr><td>hl2</td><td>10</td><td>10</td><td>4</td><td>100</td><td>190</td><td>600</td><td>159</td><td>none</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note" data-i="mv_note"></p>
+  <h3 style="margin: 36px 0 14px" data-i="k_h">Controls (built-in player)</h3>
+  <div class="keys">
+    <div class="key"><kbd>W A S D</kbd><span data-i="k1">move</span></div>
+    <div class="key"><kbd>Space</kbd><kbd>Wheel</kbd><span data-i="k2">jump</span></div>
+    <div class="key"><kbd>Ctrl</kbd><span data-i="k3">crouch</span></div>
+    <div class="key"><kbd>Shift</kbd><span data-i="k4">walk</span></div>
+    <div class="key"><kbd>F3</kbd><span data-i="k5">speed HUD</span></div>
+    <div class="key"><kbd>F4</kbd><span data-i="k6">next preset</span></div>
+    <div class="key"><kbd>F5</kbd><span data-i="k7">autohop on/off</span></div>
+    <div class="key"><kbd>F6</kbd><kbd>F7</kbd><span data-i="k8">sensitivity</span></div>
+  </div>
+  <h3 style="margin: 36px 0 14px" data-i="api_h">Script API</h3>
+<pre><span class="c"># the autoload is called CDT</span>
+CDT.set_preset("csgo")
+CDT.spawn_player(Vector3(0, 1, 0))
+CDT.attach(my_body)              <span class="c"># CharacterBody3D, origin at the feet</span>
+CDT.cfg["autohop"] = true
+CDT.cfg["maxspeed"] = 260.0      <span class="c"># Source units per second</span>
+CDT.save_cfg()
+CDT.controller().bhops           <span class="c"># also speed_u(), on_ground, ducked</span>
+<span class="c"># ladders: an Area3D in group "cdt_ladder"</span></pre>
+</div></section>
+
+<section id="tested"><div class="wrap">
+  <div class="eyebrow" data-i="te_eye">Tested</div>
+  <h2 data-i="te_h">Measured in Godot 4.4.1 at 64 tick</h2>
+  <p class="intro" data-i="te_p"></p>
+  <div class="stats">
+    <div class="stat"><div class="v">57.0 <small>u</small></div><div class="l" data-i="s1">standing jump apex, 47 ticks in the air</div></div>
+    <div class="stat"><div class="v">0.19 <small>s</small></div><div class="l" data-i="s2">0 to 250 u/s on the ground (12 ticks)</div></div>
+    <div class="stat"><div class="v">0.41 <small>s</small></div><div class="l" data-i="s3">250 u/s to a full stop (26 ticks)</div></div>
+    <div class="stat"><div class="v">460 <small>u/s</small></div><div class="l" data-i="s4">after 11 air-strafed bunnyhops (cs2 / css)</div></div>
+    <div class="stat"><div class="v">17 <small>u</small></div><div class="l" data-i="s5">step is climbed; a 19 u step blocks you</div></div>
+    <div class="stat"><div class="v">72 &rarr; 54</div><div class="l" data-i="s6">hull height standing to crouched, in units</div></div>
+  </div>
+  <h3 style="margin: 36px 0 12px" data-i="lim_h">What it does not do</h3>
+  <ul class="limits">
+    <li data-i="l1"></li><li data-i="l2"></li><li data-i="l3"></li><li data-i="l4"></li>
+  </ul>
+  <details>
+    <summary data-i="src">View the full source</summary>
+    <textarea id="src-view" readonly spellcheck="false"></textarea>
+  </details>
+</div></section>
+
+<div class="wrap"><footer>
+  <div class="brand" style="font-size:20px"><span>Cdisk<b>Tex</b> Engine</span><span class="mono" style="font-size:13px;color:var(--dim);font-weight:400">CDT &middot; Center Diskent Tex</span></div>
+  <div data-i="foot1"></div>
+  <div data-i="foot2"></div>
+</footer></div>
+</main>
+
+<script id="src-json" type="application/json">"@tool\nextends Node\n## ============================================================================\n##  CdiskTex Engine  (CDT)  -  Center Diskent Tex            version 1.0.0\n##  One file. Godot 4.x. Free.\n##\n##  Gives any 3D Godot project Source-engine style player movement:\n##  the CS2 / CS:GO / CS:S feel - accelerate / friction / stopspeed, air-strafe,\n##  bunnyhopping (scroll-wheel jump works), crouch + crouch-jump, stair stepping,\n##  surfable ramps, ladders, 64-tick physics, CS mouse sensitivity (m_yaw 0.022)\n##  and a speed / bhop HUD.  It also shows the CdiskTex logo before your game.\n##\n##  INSTALL (pick one, 10 seconds):\n##    A) Drop this file anywhere in your project, then\n##       Project > Project Settings > Globals > Autoload > choose this file,\n##       Node Name \"CDT\" > Add.\n##    B) Drop this file into your project and attach it (as a script) to any\n##       node of any scene in the editor. It is a @tool script: it registers\n##       itself as the autoload \"CDT\" and saves project.godot by itself.\n##\n##  USE: nothing to do. On run, CDT\n##    - takes over the node(s) named *player* / in group \"player\" / \"cdt_player\"\n##      (a CharacterBody3D whose origin is at its feet), or\n##    - spawns its own first-person player when a 3D scene has none.\n##  Settings are saved to  user://cdisktex_engine.cfg  automatically.\n##\n##  KEYS (own player):  WASD move | Space or Mouse Wheel jump | Ctrl duck |\n##    Shift walk | Esc release mouse | F3 HUD | F4 next preset | F5 autohop |\n##    F6 sensitivity - / F7 sensitivity +\n##\n##  API (autoload \"CDT\"):\n##    CDT.set_preset(\"cs2\" | \"csgo\" | \"css\" | \"hl2\")\n##    CDT.spawn_player(Vector3) -> CharacterBody3D\n##    CDT.attach(body: CharacterBody3D, own_view := false)\n##    CDT.cfg[\"maxspeed\"] = 260.0        # any value below, Source units/s\n##    CDT.controller()                   # speed_u(), bhops, on_ground ...\n##\n##  Units are Source units (1 unit = 0.01905 m), like the real thing.\n##  Get updates / the source file:  see SITE_URL below.\n##  License: free for any use, commercial included. No warranty. Independent\n##  work, not affiliated with Valve; \"Source\" and \"Counter-Strike\" are theirs.\n## ============================================================================\n\nconst VERSION := \"1.0.0\"\nconst SITE_URL := \"https://qusderlol-glitch.github.io/CdiskTex-Engine/\"\nconst U := 0.01905                       # metres per Source unit\nconst AUTOLOAD_NAME := \"CDT\"\nconst CFG_PATH := \"user://cdisktex_engine.cfg\"\nconst WEDGE_DEG := 54.0                  # 15 % of the disc is missing ...\nconst TILT_DEG := 15.0                   # ... and its edge is tilted 15 degrees\n\n## Movement presets, all in Source units (u, u/s, u/s^2).\nconst PRESETS := {\n\t\"cs2\": {\n\t\t\"accelerate\": 5.5, \"airaccelerate\": 12.0, \"friction\": 5.2, \"stopspeed\": 80.0,\n\t\t\"maxspeed\": 250.0, \"gravity\": 800.0, \"jump_speed\": 301.99, \"stepsize\": 18.0,\n\t\t\"bhop_cap\": 0.0, \"airspeed_cap\": 30.0, \"duck_speed\": 0.34, \"walk_speed\": 0.52,\n\t\t\"maxvelocity\": 3500.0, \"hull_w\": 32.0, \"hull_h\": 72.0, \"hull_duck\": 54.0,\n\t\t\"eye\": 64.0, \"eye_duck\": 46.0, \"ladder_speed\": 200.0,\n\t},\n\t\"csgo\": {\n\t\t\"accelerate\": 5.5, \"airaccelerate\": 12.0, \"friction\": 5.2, \"stopspeed\": 80.0,\n\t\t\"maxspeed\": 250.0, \"gravity\": 800.0, \"jump_speed\": 301.99, \"stepsize\": 18.0,\n\t\t\"bhop_cap\": 1.1, \"airspeed_cap\": 30.0, \"duck_speed\": 0.34, \"walk_speed\": 0.52,\n\t\t\"maxvelocity\": 3500.0, \"hull_w\": 32.0, \"hull_h\": 72.0, \"hull_duck\": 54.0,\n\t\t\"eye\": 64.0, \"eye_duck\": 46.0, \"ladder_speed\": 200.0,\n\t},\n\t\"css\": {\n\t\t\"accelerate\": 5.0, \"airaccelerate\": 10.0, \"friction\": 4.0, \"stopspeed\": 75.0,\n\t\t\"maxspeed\": 250.0, \"gravity\": 800.0, \"jump_speed\": 301.99, \"stepsize\": 18.0,\n\t\t\"bhop_cap\": 0.0, \"airspeed_cap\": 30.0, \"duck_speed\": 0.34, \"walk_speed\": 0.52,\n\t\t\"maxvelocity\": 3500.0, \"hull_w\": 32.0, \"hull_h\": 72.0, \"hull_duck\": 54.0,\n\t\t\"eye\": 64.0, \"eye_duck\": 46.0, \"ladder_speed\": 200.0,\n\t},\n\t\"hl2\": {\n\t\t\"accelerate\": 10.0, \"airaccelerate\": 10.0, \"friction\": 4.0, \"stopspeed\": 100.0,\n\t\t\"maxspeed\": 190.0, \"gravity\": 600.0, \"jump_speed\": 158.74, \"stepsize\": 18.0,\n\t\t\"bhop_cap\": 0.0, \"airspeed_cap\": 30.0, \"duck_speed\": 0.33, \"walk_speed\": 0.52,\n\t\t\"maxvelocity\": 3500.0, \"hull_w\": 32.0, \"hull_h\": 72.0, \"hull_duck\": 36.0,\n\t\t\"eye\": 64.0, \"eye_duck\": 28.0, \"ladder_speed\": 200.0,\n\t},\n}\nconst PRESET_ORDER := [\"cs2\", \"csgo\", \"css\", \"hl2\"]\n\nconst ACTION_KEYS := {\n\t\"cdt_forward\": KEY_W, \"cdt_back\": KEY_S, \"cdt_left\": KEY_A, \"cdt_right\": KEY_D,\n\t\"cdt_jump\": KEY_SPACE, \"cdt_duck\": KEY_CTRL, \"cdt_walk\": KEY_SHIFT,\n}\n\nstatic var _instance: Node = null\n\nvar cfg: Dictionary = {}\nvar preset_name := \"cs2\"\nvar _controllers: Array = []\nvar _hud_layer: CanvasLayer\nvar _hud: Label\nvar _cross: Control\nvar _splash_layer: CanvasLayer\nvar _splash_link: LinkButton\nvar _splash_open := false\nvar _saved_mouse := Input.MOUSE_MODE_VISIBLE\nvar _last_scene: Node = null\nvar _scan_wait := 0\nvar _spawn_tried := false\n\n# ============================================================================\n#  startup / self-install\n# ============================================================================\n\nfunc _ready() -> void:\n\tif Engine.is_editor_hint():\n\t\t_self_install()\n\t\treturn\n\tif _instance != null and _instance != self:\n\t\tqueue_free()                          # already running as the autoload\n\t\treturn\n\t_instance = self\n\tprocess_mode = Node.PROCESS_MODE_ALWAYS\n\tcfg = (PRESETS[\"cs2\"] as Dictionary).duplicate()\n\tcfg.merge({\n\t\t\"sensitivity\": 1.0, \"fov\": 73.74, \"autohop\": false, \"hud\": true, \"tickrate\": 64,\n\t\t\"splash\": true, \"capture_mouse\": true, \"auto_spawn\": true, \"takeover\": true,\n\t\t\"crosshair\": true, \"jump_wheel\": true, \"preset\": \"cs2\",\n\t}, true)\n\t_load_cfg()\n\t_make_actions()\n\tif int(cfg[\"tickrate\"]) > 0:\n\t\tEngine.physics_ticks_per_second = int(cfg[\"tickrate\"])\n\t_build_hud()\n\t_maybe_splash()\n\tprint(\"[CdiskTex Engine %s] ready - preset %s, %d tick. %s\" % [VERSION, preset_name, Engine.physics_ticks_per_second, SITE_URL])\n\nfunc _self_install() -> void:\n\tvar path := \"\"\n\tvar scr: Script = get_script()\n\tif scr != null:\n\t\tpath = scr.resource_path\n\tif path == \"\" or not path.begins_with(\"res://\"):\n\t\treturn\n\tvar key := \"autoload/\" + AUTOLOAD_NAME\n\tvar cur: String = str(ProjectSettings.get_setting(key, \"\"))\n\tif cur == \"*\" + path:\n\t\treturn\n\tProjectSettings.set_setting(key, \"*\" + path)\n\tvar err := ProjectSettings.save()\n\tprint(\"[CdiskTex Engine] installed itself as autoload '%s' (%s). Run your game.\" % [AUTOLOAD_NAME, \"saved\" if err == OK else \"save failed: %d\" % err])\n\nfunc _make_actions() -> void:\n\tfor a in ACTION_KEYS:\n\t\tif not InputMap.has_action(a):\n\t\t\tInputMap.add_action(a)\n\t\t\tvar ev := InputEventKey.new()\n\t\t\tev.physical_keycode = ACTION_KEYS[a]\n\t\t\tInputMap.action_add_event(a, ev)\n\tif bool(cfg[\"jump_wheel\"]):\n\t\tfor b in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:\n\t\t\tvar mb := InputEventMouseButton.new()\n\t\t\tmb.button_index = b\n\t\t\tInputMap.action_add_event(\"cdt_jump\", mb)\n\nfunc _load_cfg() -> void:\n\tvar f := ConfigFile.new()\n\tif f.load(CFG_PATH) != OK:\n\t\tset_preset(\"cs2\", false)\n\t\treturn\n\tfor k in [\"sensitivity\", \"fov\", \"autohop\", \"hud\", \"tickrate\", \"splash\", \"capture_mouse\", \"auto_spawn\", \"takeover\", \"crosshair\", \"jump_wheel\"]:\n\t\tif f.has_section_key(\"cdt\", k):\n\t\t\tcfg[k] = f.get_value(\"cdt\", k)\n\tset_preset(str(f.get_value(\"cdt\", \"preset\", \"cs2\")), false)\n\tfor k in f.get_section_keys(\"override\") if f.has_section(\"override\") else PackedStringArray():\n\t\tcfg[k] = f.get_value(\"override\", k)\n\nfunc save_cfg() -> void:\n\tvar f := ConfigFile.new()\n\tfor k in [\"sensitivity\", \"fov\", \"autohop\", \"hud\", \"tickrate\", \"splash\", \"capture_mouse\", \"auto_spawn\", \"takeover\", \"crosshair\", \"jump_wheel\"]:\n\t\tf.set_value(\"cdt\", k, cfg[k])\n\tf.set_value(\"cdt\", \"preset\", preset_name)\n\tf.save(CFG_PATH)\n\nfunc _exit_tree() -> void:\n\tif not Engine.is_editor_hint() and _instance == self:\n\t\tsave_cfg()\n\t\t_instance = null\n\n## Switch movement preset: \"cs2\", \"csgo\", \"css\", \"hl2\".\nfunc set_preset(pname: String, save := true) -> void:\n\tif not PRESETS.has(pname):\n\t\treturn\n\tpreset_name = pname\n\tcfg.merge(PRESETS[pname] as Dictionary, true)\n\tcfg[\"preset\"] = pname\n\tif save:\n\t\tsave_cfg()\n\nfunc controller() -> CDTController:\n\tfor c in _controllers:\n\t\tif is_instance_valid(c):\n\t\t\treturn c\n\treturn null\n\n# ============================================================================\n#  scene scanning: take over / spawn a player\n# ============================================================================\n\nfunc _process(dt: float) -> void:\n\tif Engine.is_editor_hint():\n\t\treturn\n\tvar scn := get_tree().current_scene\n\tif scn != _last_scene:\n\t\t_last_scene = scn\n\t\t_scan_wait = 3\n\t\t_spawn_tried = false\n\t\t_controllers = _controllers.filter(func(c): return is_instance_valid(c))\n\tif _scan_wait > 0:\n\t\t_scan_wait -= 1\n\t\tif _scan_wait == 0 and scn != null:\n\t\t\t_scan_scene(scn)\n\t_update_hud()\n\nfunc _scan_scene(scn: Node) -> void:\n\tvar found := false\n\tif bool(cfg[\"takeover\"]):\n\t\tvar cand: Array = []\n\t\tfor g in [\"cdt_player\", \"player\"]:\n\t\t\tfor n in get_tree().get_nodes_in_group(g):\n\t\t\t\tif n is CharacterBody3D and not cand.has(n):\n\t\t\t\t\tcand.append(n)\n\t\tfor n in scn.find_children(\"*\", \"CharacterBody3D\", true, false):\n\t\t\tif (n as Node).name.to_lower().contains(\"player\") and not cand.has(n):\n\t\t\t\tcand.append(n)\n\t\tfor n in cand:\n\t\t\tif (n as Node).has_node(\"CDTController\"):\n\t\t\t\tfound = true\n\t\t\t\tcontinue\n\t\t\tattach(n as CharacterBody3D, false)\n\t\t\tfound = true\n\tif not found and bool(cfg[\"auto_spawn\"]) and scn is Node3D and not _spawn_tried:\n\t\t_spawn_tried = true\n\t\tvar has_world := false\n\t\tfor n in scn.find_children(\"*\", \"CollisionObject3D\", true, false):\n\t\t\thas_world = true\n\t\t\tbreak\n\t\tif has_world:\n\t\t\tvar sp := Vector3(0, 1.0, 0)\n\t\t\tfor nm in [\"CDTSpawn\", \"PlayerStart\", \"SpawnPoint\", \"Spawn\", \"PlayerSpawn\"]:\n\t\t\t\tvar m := scn.find_child(nm, true, false)\n\t\t\t\tif m is Node3D:\n\t\t\t\t\tsp = (m as Node3D).global_position\n\t\t\t\t\tbreak\n\t\t\tspawn_player(sp)\n\n## Spawn CDT's own first-person player.\nfunc spawn_player(pos: Vector3) -> CharacterBody3D:\n\tvar body := CharacterBody3D.new()\n\tbody.name = \"CDTPlayer\"\n\tbody.add_to_group(\"cdt_player\")\n\tvar scn := get_tree().current_scene\n\tif scn == null:\n\t\tscn = get_tree().root\n\tscn.add_child(body)\n\tbody.global_position = pos\n\tvar c := attach(body, true)\n\tif bool(cfg[\"capture_mouse\"]):\n\t\tInput.mouse_mode = Input.MOUSE_MODE_CAPTURED\n\treturn c.body\n\n## Put a CharacterBody3D (origin at its feet) under Source movement.\n## own_view = true: CDT also owns the camera + mouse look.\nfunc attach(body: CharacterBody3D, own_view := false) -> CDTController:\n\tvar c := CDTController.new()\n\tc.name = \"CDTController\"\n\tbody.add_child(c)\n\tc.setup(body, cfg, own_view)\n\t_controllers.append(c)\n\treturn c\n\n# ============================================================================\n#  input\n# ============================================================================\n\nfunc _input(event: InputEvent) -> void:\n\tif Engine.is_editor_hint():\n\t\treturn\n\tif _splash_open:\n\t\t_splash_input(event)\n\t\treturn\n\tif event.is_action_pressed(\"cdt_jump\") and not event.is_echo():\n\t\tfor c in _controllers:\n\t\t\tif is_instance_valid(c):\n\t\t\t\t(c as CDTController).jump_buffer = true\n\tif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:\n\t\tfor c in _controllers:\n\t\t\tif is_instance_valid(c) and (c as CDTController).own_view:\n\t\t\t\t(c as CDTController).look((event as InputEventMouseMotion).relative)\n\tif event is InputEventKey and event.pressed and not event.echo:\n\t\tvar k := (event as InputEventKey).physical_keycode\n\t\tmatch k:\n\t\t\tKEY_F3:\n\t\t\t\tcfg[\"hud\"] = not bool(cfg[\"hud\"]); save_cfg()\n\t\t\tKEY_F4:\n\t\t\t\tvar i := PRESET_ORDER.find(preset_name)\n\t\t\t\tset_preset(PRESET_ORDER[(i + 1) % PRESET_ORDER.size()])\n\t\t\t\t_flash(\"preset: \" + preset_name)\n\t\t\tKEY_F5:\n\t\t\t\tcfg[\"autohop\"] = not bool(cfg[\"autohop\"]); save_cfg()\n\t\t\t\t_flash(\"autohop: \" + (\"ON\" if bool(cfg[\"autohop\"]) else \"OFF\"))\n\t\t\tKEY_F6, KEY_F7:\n\t\t\t\tvar s := float(cfg[\"sensitivity\"])\n\t\t\t\ts = clampf(s * (0.9 if k == KEY_F6 else 1.1), 0.05, 20.0)\n\t\t\t\tcfg[\"sensitivity\"] = snappedf(s, 0.01); save_cfg()\n\t\t\t\t_flash(\"sensitivity: %s\" % str(cfg[\"sensitivity\"]))\n\t\t\tKEY_ESCAPE:\n\t\t\t\tvar cap := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED\n\t\t\t\tfor c in _controllers:\n\t\t\t\t\tif is_instance_valid(c) and (c as CDTController).own_view:\n\t\t\t\t\t\tInput.mouse_mode = Input.MOUSE_MODE_VISIBLE if cap else Input.MOUSE_MODE_CAPTURED\n\t\t\t\t\t\tbreak\n\tif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:\n\t\tvar mb := event as InputEventMouseButton\n\t\tif mb.button_index == MOUSE_BUTTON_LEFT and bool(cfg[\"capture_mouse\"]):\n\t\t\tfor c in _controllers:\n\t\t\t\tif is_instance_valid(c) and (c as CDTController).own_view:\n\t\t\t\t\tInput.mouse_mode = Input.MOUSE_MODE_CAPTURED\n\t\t\t\t\tbreak\n\n# ============================================================================\n#  HUD\n# ============================================================================\n\nvar _flash_t := 0.0\nvar _flash_txt := \"\"\n\nfunc _flash(t: String) -> void:\n\t_flash_txt = t\n\t_flash_t = 1.6\n\nfunc _build_hud() -> void:\n\t_hud_layer = CanvasLayer.new()\n\t_hud_layer.layer = 100\n\tadd_child(_hud_layer)\n\t_hud = Label.new()\n\t_hud.position = Vector2(14, 10)\n\t_hud.add_theme_font_size_override(\"font_size\", 15)\n\t_hud.add_theme_color_override(\"font_color\", Color(1, 0.86, 0.6))\n\t_hud.add_theme_color_override(\"font_outline_color\", Color(0, 0, 0, 0.9))\n\t_hud.add_theme_constant_override(\"outline_size\", 4)\n\t_hud_layer.add_child(_hud)\n\t_cross = Control.new()\n\t_cross.set_anchors_preset(Control.PRESET_FULL_RECT)\n\t_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE\n\t_cross.draw.connect(_draw_cross)\n\t_hud_layer.add_child(_cross)\n\nfunc _draw_cross() -> void:\n\tvar own := false\n\tfor c in _controllers:\n\t\tif is_instance_valid(c) and (c as CDTController).own_view:\n\t\t\town = true\n\tif not own or not bool(cfg[\"crosshair\"]):\n\t\treturn\n\tvar m := _cross.size * 0.5\n\tvar col := Color(0.2, 1.0, 0.3, 0.95)\n\tvar edge := Color(0, 0, 0, 0.6)\n\tfor d in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:\n\t\t_cross.draw_line(m + d * 3.0, m + d * 9.0, edge, 4.0)\n\t\t_cross.draw_line(m + d * 3.0, m + d * 9.0, col, 2.0)\n\nfunc _update_hud() -> void:\n\tif _hud == null:\n\t\treturn\n\t_flash_t = maxf(_flash_t - get_process_delta_time(), 0.0)\n\tvar c := controller()\n\tvar show := bool(cfg[\"hud\"]) and c != null and not _splash_open\n\t_hud.visible = show or _flash_t > 0.0\n\t_cross.visible = c != null and not _splash_open\n\t_cross.queue_redraw()\n\tif not _hud.visible:\n\t\treturn\n\tvar txt := \"\"\n\tif show and c != null:\n\t\ttxt = \"SPEED %4d u/s   PRE %4d   HOPS %d   %s%s\\n%s | %d tick | sens %s | autohop %s\\nF3 hud  F4 preset  F5 autohop  F6/F7 sens\" % [\n\t\t\tint(c.speed_u()), int(c.last_prespeed), c.bhops, \"GROUND\" if c.on_ground else \"AIR\",\n\t\t\t\"  DUCK\" if c.ducked else \"\", preset_name, Engine.physics_ticks_per_second, str(cfg[\"sensitivity\"]),\n\t\t\t\"on\" if bool(cfg[\"autohop\"]) else \"off\"]\n\tif _flash_t > 0.0:\n\t\ttxt += (\"\\n\" if txt != \"\" else \"\") + \">> \" + _flash_txt\n\t_hud.text = txt\n\n# ============================================================================\n#  splash (the CdiskTex logo comes first)\n# ============================================================================\n\nfunc _maybe_splash() -> void:\n\tif not bool(cfg[\"splash\"]):\n\t\treturn\n\tif DisplayServer.get_name() == \"headless\" or \"--cdt-nosplash\" in OS.get_cmdline_user_args() or \"--cdt-nosplash\" in OS.get_cmdline_args():\n\t\treturn\n\t_splash_layer = CanvasLayer.new()\n\t_splash_layer.layer = 200\n\tadd_child(_splash_layer)\n\tvar bg := ColorRect.new()\n\tbg.set_anchors_preset(Control.PRESET_FULL_RECT)\n\tbg.color = Color(0.035, 0.037, 0.05)\n\tbg.mouse_filter = Control.MOUSE_FILTER_IGNORE\n\t_splash_layer.add_child(bg)\n\tvar logo := CDTLogo.new()\n\tlogo.set_anchors_preset(Control.PRESET_FULL_RECT)\n\tlogo.mouse_filter = Control.MOUSE_FILTER_IGNORE\n\t_splash_layer.add_child(logo)\n\t_splash_link = LinkButton.new()\n\t_splash_link.text = \"Free download:  \" + SITE_URL\n\t_splash_link.uri = SITE_URL\n\t_splash_link.underline = LinkButton.UNDERLINE_MODE_ON_HOVER\n\t_splash_link.add_theme_font_size_override(\"font_size\", 15)\n\t_splash_link.add_theme_color_override(\"font_color\", Color(1.0, 0.62, 0.25))\n\t_splash_link.add_theme_color_override(\"font_hover_color\", Color(1.0, 0.85, 0.5))\n\t_splash_link.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)\n\t_splash_link.grow_horizontal = Control.GROW_DIRECTION_BOTH\n\t_splash_link.position.y -= 44\n\t_splash_layer.add_child(_splash_link)\n\t_saved_mouse = Input.mouse_mode\n\tInput.mouse_mode = Input.MOUSE_MODE_VISIBLE\n\tget_tree().paused = true\n\t_splash_open = true\n\t_splash_layer.offset = Vector2.ZERO\n\tvar tw := create_tween()\n\ttw.tween_property(logo, \"modulate:a\", 1.0, 0.7).from(0.0)\n\nfunc _splash_input(event: InputEvent) -> void:\n\tvar pressed := false\n\tif event is InputEventKey:\n\t\tpressed = event.pressed and not event.echo\n\telif event is InputEventMouseButton:\n\t\tpressed = event.pressed\n\t\tif pressed and _splash_link != null and _splash_link.get_global_rect().has_point((event as InputEventMouseButton).position):\n\t\t\treturn                                  # clicking the link opens the site, not the game\n\telif event is InputEventJoypadButton:\n\t\tpressed = event.pressed\n\tif not pressed:\n\t\treturn\n\tget_viewport().set_input_as_handled()\n\t_splash_open = false\n\tvar tw := create_tween()\n\ttw.tween_property(_splash_layer, \"offset:y\", 0.0, 0.0)\n\tfor ch in _splash_layer.get_children():\n\t\tif ch is CanvasItem:\n\t\t\ttw.parallel().tween_property(ch, \"modulate:a\", 0.0, 0.35)\n\ttw.tween_callback(func() -> void:\n\t\t_splash_layer.queue_free()\n\t\tget_tree().paused = false\n\t\tInput.mouse_mode = _saved_mouse\n\t\tfor c in _controllers:\n\t\t\tif is_instance_valid(c) and (c as CDTController).own_view and bool(cfg[\"capture_mouse\"]):\n\t\t\t\tInput.mouse_mode = Input.MOUSE_MODE_CAPTURED)\n\n# ============================================================================\n#  the logo: a CD / disc with 15 % cut out, edge tilted 15 degrees, \"Cd\" in the hub\n# ============================================================================\n\nclass CDTLogo extends Control:\n\tvar t := 0.0\n\n\tfunc _process(dt: float) -> void:\n\t\tt += dt\n\t\tqueue_redraw()\n\n\tfunc _draw() -> void:\n\t\tvar font := ThemeDB.fallback_font\n\t\tvar R := minf(size.x * 0.27, size.y * 0.185)\n\t\tvar c := Vector2(size.x * 0.5, size.y * 0.315)\n\t\tdraw_emblem(self, font, c, R, t)\n\t\t# wordmark\n\t\tvar fs := int(R * 0.44)\n\t\tvar base_y := c.y + R * 1.62 + fs * 0.95\n\t\tvar w1 := font.get_string_size(\"Cdisk\", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x\n\t\tvar w2 := font.get_string_size(\"Tex\", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x\n\t\tvar x0 := c.x - (w1 + w2) * 0.5\n\t\tdraw_string(font, Vector2(x0, base_y), \"Cdisk\", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.96, 0.96, 0.98))\n\t\tdraw_string(font, Vector2(x0 + w1, base_y), \"Tex\", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.5, 0.12))\n\t\t# ENGINE, letter-spaced\n\t\tvar fs2 := int(R * 0.15)\n\t\tvar word := \"E N G I N E\"\n\t\tvar ww := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x\n\t\tdraw_string(font, Vector2(c.x - ww * 0.5, base_y + fs2 * 1.9), word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(0.72, 0.74, 0.82))\n\t\tvar fs3 := int(R * 0.105)\n\t\tvar sub := \"CENTER DISKENT TEX   \u00b7   CDT   \u00b7   v%s\" % VERSION\n\t\tvar sw := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs3).x\n\t\tdraw_string(font, Vector2(c.x - sw * 0.5, base_y + fs2 * 1.9 + fs3 * 2.2), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs3, Color(0.5, 0.52, 0.6))\n\t\tvar blink := 0.55 + 0.45 * sin(t * 3.2)\n\t\tvar press := \"PRESS ANY KEY\"\n\t\tvar pw := font.get_string_size(press, HORIZONTAL_ALIGNMENT_LEFT, -1, fs3 + 3).x\n\t\tdraw_string(font, Vector2(c.x - pw * 0.5, size.y - 92), press, HORIZONTAL_ALIGNMENT_LEFT, -1, fs3 + 3, Color(1, 1, 1, blink))\n\n\t## Draws the emblem centred at c with disc radius R (works in any CanvasItem).\n\tstatic func draw_emblem(ci: CanvasItem, font: Font, c: Vector2, R: float, t: float) -> void:\n\t\tvar a_w1 := deg_to_rad(-TILT_DEG)                       # wedge edge, 15 degrees above horizontal\n\t\tvar a_w0 := a_w1 - deg_to_rad(WEDGE_DEG)                # wedge spans 54 degrees (= 15 % of 360)\n\t\tvar a_start := a_w1\n\t\tvar a_end := a_w0 + TAU\n\t\tvar sweep := a_end - a_start\n\t\t# glow\n\t\tfor i in 6:\n\t\t\tci.draw_circle(c, R * (1.55 - i * 0.12), Color(1.0, 0.45, 0.1, 0.012 + 0.006 * i))\n\t\t# disc body\n\t\tvar seg := 144\n\t\tvar r_in := R * 0.34\n\t\tfor i in seg:\n\t\t\tvar a0 := a_start + sweep * float(i) / seg\n\t\t\tvar a1 := a_start + sweep * float(i + 1) / seg\n\t\t\tvar col0 := _sheen(a0, t)\n\t\t\tvar col1 := _sheen(a1, t)\n\t\t\tvar pts := PackedVector2Array([\n\t\t\t\tc + Vector2(cos(a0), sin(a0)) * R, c + Vector2(cos(a1), sin(a1)) * R,\n\t\t\t\tc + Vector2(cos(a1), sin(a1)) * r_in, c + Vector2(cos(a0), sin(a0)) * r_in])\n\t\t\tvar cols := PackedColorArray([col0, col1, col1 * 0.45, col0 * 0.45])\n\t\t\tfor k in cols.size():\n\t\t\t\tcols[k].a = 1.0\n\t\t\tci.draw_polygon(pts, cols)\n\t\t# data grooves\n\t\tfor k in 11:\n\t\t\tvar r := lerpf(r_in * 1.08, R * 0.97, float(k) / 10.0)\n\t\t\tci.draw_arc(c, r, a_start, a_end, 160, Color(0, 0, 0, 0.2 if k % 3 else 0.32), 1.0, true)\n\t\t# shine streaks\n\t\tfor s in [0.9, 3.9]:\n\t\t\tvar ang: float = s + sin(t * 0.4) * 0.12\n\t\t\tfor k in 7:\n\t\t\t\tvar r2 := lerpf(R * 0.45, R * 0.94, float(k) / 6.0)\n\t\t\t\tci.draw_arc(c, r2, ang - 0.32, ang + 0.32, 24, Color(1, 1, 1, 0.1 + 0.02 * k), 2.0, true)\n\t\t# bright rim\n\t\tci.draw_arc(c, R, a_start, a_end, 200, Color(1, 0.93, 0.82, 0.95), 3.0, true)\n\t\tci.draw_arc(c, R * 0.985, a_start, a_end, 200, Color(1.0, 0.55, 0.15, 0.7), 2.0, true)\n\t\t# micro text ring (clockwise, outside the cut)\n\t\tvar ring := \"CENTER DISKENT TEX \u00b7 CDT \u00b7 \"\n\t\tvar fsr := maxi(int(R * 0.062), 6)\n\t\tvar rr := R * 0.76\n\t\tvar ang2 := a_start + 0.16\n\t\tvar ix := 0\n\t\twhile ang2 < a_end - 0.16:\n\t\t\tvar ch := ring[ix % ring.length()]\n\t\t\tvar cw := font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fsr).x\n\t\t\tvar mid := ang2 + (cw * 0.5) / rr\n\t\t\tci.draw_set_transform(c + Vector2(cos(mid), sin(mid)) * rr, mid + PI * 0.5, Vector2.ONE)\n\t\t\tci.draw_string(font, Vector2(-cw * 0.5, 0), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fsr, Color(0.1, 0.02, 0.0, 0.62))\n\t\t\tci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)\n\t\t\tang2 += (cw + 1.2) / rr\n\t\t\tix += 1\n\t\t# hub\n\t\tci.draw_circle(c, R * 0.34, Color(0.045, 0.047, 0.06))\n\t\tci.draw_arc(c, R * 0.34, 0.0, TAU, 96, Color(1.0, 0.6, 0.2, 0.95), 2.5, true)\n\t\tci.draw_arc(c, R * 0.305, 0.0, TAU, 96, Color(1, 1, 1, 0.2), 1.0, true)\n\t\tvar fsh := int(R * 0.27)\n\t\tvar wC := font.get_string_size(\"C\", HORIZONTAL_ALIGNMENT_LEFT, -1, fsh).x\n\t\tvar wd := font.get_string_size(\"d\", HORIZONTAL_ALIGNMENT_LEFT, -1, fsh).x\n\t\tvar tx := c.x - (wC + wd) * 0.5\n\t\tvar ty := c.y + fsh * 0.33\n\t\tci.draw_string(font, Vector2(tx, ty), \"C\", HORIZONTAL_ALIGNMENT_LEFT, -1, fsh, Color(0.97, 0.97, 1.0))\n\t\tci.draw_string(font, Vector2(tx + wC, ty), \"d\", HORIZONTAL_ALIGNMENT_LEFT, -1, fsh, Color(1.0, 0.52, 0.14))\n\t\t# cut edges\n\t\tfor a in [a_w1, a_w0]:\n\t\t\tvar d := Vector2(cos(a), sin(a))\n\t\t\tci.draw_line(c + d * R * 0.34, c + d * R * 1.0, Color(1, 1, 1, 0.9), 2.0, true)\n\t\t\tci.draw_line(c + d * R * 1.0, c + d * R * 1.1, Color(1.0, 0.55, 0.15, 0.9), 2.0, true)\n\t\t# ghost of the missing 15 % (dashed) + scan dot sliding in the gap\n\t\tvar gaps := 18\n\t\tfor i in gaps:\n\t\t\tif i % 2 == 0:\n\t\t\t\tvar g0 := a_w0 + (a_w1 - a_w0) * float(i) / gaps\n\t\t\t\tvar g1 := a_w0 + (a_w1 - a_w0) * float(i + 1) / gaps\n\t\t\t\tci.draw_arc(c, R, g0, g1, 6, Color(1, 1, 1, 0.38), 1.5, true)\n\t\t\t\tci.draw_arc(c, R * 0.66, g0, g1, 6, Color(1, 1, 1, 0.16), 1.0, true)\n\t\tvar am := (a_w0 + a_w1) * 0.5\n\t\tvar fr := fmod(t * 0.45, 1.0)\n\t\tvar sp := c + Vector2(cos(am), sin(am)) * R * lerpf(0.4, 1.0, fr)\n\t\tci.draw_circle(sp, R * 0.05, Color(1.0, 0.6, 0.2, 0.18))\n\t\tci.draw_circle(sp, R * 0.022, Color(1.0, 0.9, 0.7, 0.95))\n\t\t# tick marks (only where the disc exists)\n\t\tfor deg in range(0, 360, 6):\n\t\t\tvar a := deg_to_rad(float(deg)) - PI * 0.5\n\t\t\tvar aa := fposmod(a - a_start, TAU)\n\t\t\tif aa > sweep - 0.02:\n\t\t\t\tcontinue\n\t\t\tvar long := deg % 30 == 0\n\t\t\tvar d2 := Vector2(cos(a), sin(a))\n\t\t\tci.draw_line(c + d2 * R * 1.07, c + d2 * R * (1.16 if long else 1.11), Color(1, 1, 1, 0.65 if long else 0.32), 1.5 if long else 1.0, true)\n\t\t# orbit with satellites\n\t\tci.draw_arc(c, R * 1.3, a_start + 0.1, a_end - 0.1, 200, Color(1, 1, 1, 0.14), 1.0, true)\n\t\tfor i in 3:\n\t\t\tvar sa := a_start + 0.4 + fposmod(t * 0.08 + i * 0.31, 1.0) * (sweep - 0.8)\n\t\t\tci.draw_circle(c + Vector2(cos(sa), sin(sa)) * R * 1.3, R * (0.022 + 0.008 * i), Color(1.0, 0.6, 0.2, 0.85))\n\t\t# arrow marker where the 15 % went\n\t\tvar tip := c + Vector2(cos(am), sin(am)) * R * 1.34\n\t\tvar perp := Vector2(-sin(am), cos(am))\n\t\tci.draw_colored_polygon(PackedVector2Array([tip, tip - Vector2(cos(am), sin(am)) * R * 0.09 + perp * R * 0.05, tip - Vector2(cos(am), sin(am)) * R * 0.09 - perp * R * 0.05]), Color(1.0, 0.55, 0.15))\n\t\t# corner brackets\n\t\tvar m := R * 1.62\n\t\tvar l := R * 0.18\n\t\tfor sx in [-1.0, 1.0]:\n\t\t\tfor sy in [-1.0, 1.0]:\n\t\t\t\tvar p := c + Vector2(sx * m, sy * m)\n\t\t\t\tci.draw_line(p, p + Vector2(-sx * l, 0), Color(1, 1, 1, 0.4), 1.5)\n\t\t\t\tci.draw_line(p, p + Vector2(0, -sy * l), Color(1, 1, 1, 0.4), 1.5)\n\t\t# little pixel stack by the cut\n\t\tvar px := c + Vector2(cos(am), sin(am)) * R * 1.52 + Vector2(R * 0.05, 0)\n\t\tfor i in 3:\n\t\t\tci.draw_rect(Rect2(px + Vector2(i * R * 0.07, -i * R * 0.07), Vector2(R * 0.045, R * 0.045)), Color(1.0, 0.55, 0.15, 0.4 + 0.25 * i))\n\n\tstatic func _sheen(a: float, t: float) -> Color:\n\t\tvar h := 0.065 + 0.035 * sin(a * 2.0 + t * 0.5)\n\t\tvar v := 0.82 + 0.18 * sin(a * 3.0 - t * 0.8)\n\t\treturn Color.from_hsv(h, 0.9, v)\n\n# ============================================================================\n#  the Source-style movement controller\n# ============================================================================\n\nclass CDTController extends Node:\n\tvar cfg: Dictionary\n\tvar body: CharacterBody3D\n\tvar hull: CollisionShape3D\n\tvar box := BoxShape3D.new()\n\tvar head: Node3D\n\tvar cam: Camera3D\n\tvar own_view := false\n\tvar yaw := 0.0\n\tvar pitch := 0.0\n\tvar ducked := false\n\tvar duck_t := 0.0\n\tvar on_ground := false\n\tvar ground_normal := Vector3.UP\n\tvar jump_buffer := false\n\tvar jump_held := false\n\tvar view_comp := 0.0\n\tvar prev_pos := Vector3.ZERO\n\tvar cur_pos := Vector3.ZERO\n\tvar ground_ticks := 0\n\tvar bhops := 0\n\tvar last_prespeed := 0.0\n\tvar jumps_total := 0\n\tvar on_ladder := false\n\tvar _foreign_cam: Camera3D\n\n\tfunc setup(b: CharacterBody3D, c: Dictionary, own: bool) -> void:\n\t\tbody = b\n\t\tcfg = c\n\t\town_view = own\n\t\tfor ch in body.get_children():\n\t\t\tif ch is CollisionShape3D:\n\t\t\t\tch.set_deferred(\"disabled\", true)\n\t\thull = CollisionShape3D.new()\n\t\thull.name = \"CDT_Hull\"\n\t\thull.shape = box\n\t\tbody.add_child(hull)\n\t\tbody.motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED\n\t\tbody.floor_max_angle = acos(0.7)                  # Source: walkable when normal.y >= 0.7\n\t\tbody.floor_stop_on_slope = false\n\t\tbody.floor_constant_speed = false\n\t\tbody.floor_block_on_wall = false\n\t\tbody.floor_snap_length = 0.0\n\t\tbody.max_slides = 4\n\t\tbody.wall_min_slide_angle = 0.0\n\t\tbody.safe_margin = 0.001\n\t\tbody.up_direction = Vector3.UP\n\t\t_apply_hull(false)\n\t\tif own_view:\n\t\t\thead = Node3D.new()\n\t\t\thead.name = \"CDT_Head\"\n\t\t\thead.top_level = true\n\t\t\tbody.add_child(head)\n\t\t\tcam = Camera3D.new()\n\t\t\tcam.name = \"CDT_Camera\"\n\t\t\tcam.fov = float(cfg[\"fov\"])\n\t\t\tcam.near = 0.03\n\t\t\tcam.far = 2000.0\n\t\t\thead.add_child(cam)\n\t\t\tcam.current = true\n\t\telse:\n\t\t\tbody.set_physics_process(false)               # CDT drives the body now\n\t\t\tfor n in body.find_children(\"*\", \"Camera3D\", true, false):\n\t\t\t\t_foreign_cam = n\n\t\t\t\tbreak\n\t\tcur_pos = body.global_position\n\t\tprev_pos = cur_pos\n\n\tfunc _apply_hull(duck: bool) -> void:\n\t\tvar w := float(cfg[\"hull_w\"]) * U\n\t\tvar h := float(cfg[\"hull_duck\"] if duck else cfg[\"hull_h\"]) * U\n\t\tbox.size = Vector3(w, h, w)\n\t\thull.position = Vector3(0, h * 0.5, 0)\n\n\tfunc speed_u() -> float:\n\t\treturn Vector2(body.velocity.x, body.velocity.z).length() / U\n\n\tfunc look(rel: Vector2) -> void:\n\t\tvar k := deg_to_rad(0.022) * float(CDT_sens())      # CS: m_yaw = m_pitch = 0.022\n\t\tyaw -= rel.x * k\n\t\tpitch = clampf(pitch - rel.y * k, deg_to_rad(-89.0), deg_to_rad(89.0))\n\n\tfunc CDT_sens() -> float:\n\t\treturn float(cfg[\"sensitivity\"])\n\n\t# -------------------------------------------------------------- per frame\n\n\tfunc _process(dt: float) -> void:\n\t\tif body == null or not is_instance_valid(body) or not own_view:\n\t\t\treturn\n\t\tvar a := Engine.get_physics_interpolation_fraction()\n\t\tvar pos := prev_pos.lerp(cur_pos, a)\n\t\tvar eye := lerpf(float(cfg[\"eye\"]), float(cfg[\"eye_duck\"]), smoothstep(0.0, 1.0, duck_t)) * U\n\t\tview_comp *= exp(-12.0 * dt)\n\t\thead.global_position = pos + Vector3(0, eye + view_comp, 0)\n\t\thead.rotation = Vector3(0, yaw, 0)\n\t\tcam.rotation = Vector3(pitch, 0, 0)\n\n\t# --------------------------------------------------------- physics ticks\n\n\tfunc _physics_process(dt: float) -> void:\n\t\tif body == null or not is_instance_valid(body):\n\t\t\tqueue_free()\n\t\t\treturn\n\t\tprev_pos = cur_pos\n\t\tif not own_view:\n\t\t\tif _foreign_cam != null and is_instance_valid(_foreign_cam):\n\t\t\t\tyaw = _foreign_cam.global_rotation.y\n\t\t\telse:\n\t\t\t\tyaw = body.global_rotation.y\n\t\tvar captured_ok := (not own_view) or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED\n\t\tvar f := Input.get_axis(\"cdt_back\", \"cdt_forward\") if captured_ok else 0.0\n\t\tvar s := Input.get_axis(\"cdt_left\", \"cdt_right\") if captured_ok else 0.0\n\t\tvar walk := Input.is_action_pressed(\"cdt_walk\") and captured_ok\n\t\tjump_held = Input.is_action_pressed(\"cdt_jump\") and captured_ok\n\t\tvar pressed := jump_buffer and captured_ok\n\t\tjump_buffer = false\n\t\tvar g := float(cfg[\"gravity\"]) * U\n\t\tduck_t = move_toward(duck_t, 1.0 if ducked else 0.0, dt / 0.2)\n\n\t\t_check_ground()\n\t\tvar ladder := _find_ladder()\n\t\ton_ladder = ladder != null\n\t\tbody.velocity.y -= g * 0.5 * dt                                   # StartGravity\n\t\t_update_duck(captured_ok and Input.is_action_pressed(\"cdt_duck\"))\n\n\t\tvar jumped := false\n\t\tif on_ladder:\n\t\t\t_ladder_move(f, s, pressed)\n\t\telse:\n\t\t\tif on_ground and (pressed or (bool(cfg[\"autohop\"]) and jump_held)):\n\t\t\t\t_do_jump(walk)\n\t\t\t\tjumped = true\n\t\t\tvar basis := Basis(Vector3.UP, yaw)\n\t\t\tvar fwd := -basis.z\n\t\t\tvar right := basis.x\n\t\t\tvar maxs := float(cfg[\"maxspeed\"]) * U\n\t\t\tif walk:\n\t\t\t\tmaxs *= float(cfg[\"walk_speed\"])\n\t\t\tif ducked:\n\t\t\t\tmaxs *= float(cfg[\"duck_speed\"])\n\t\t\tvar wishvel := (fwd * f + right * s) * (450.0 * U)\n\t\t\tvar wishspeed := wishvel.length()\n\t\t\tif wishspeed > maxs:\n\t\t\t\twishvel *= maxs / wishspeed\n\t\t\t\twishspeed = maxs\n\t\t\tvar wishdir := wishvel.normalized() if wishspeed > 0.0001 else Vector3.ZERO\n\t\t\tif on_ground:\n\t\t\t\t_friction(dt)\n\t\t\t\t_accelerate(wishdir, wishspeed, float(cfg[\"accelerate\"]), dt)\n\t\t\t\tbody.velocity.y = 0.0\n\t\t\telse:\n\t\t\t\t_air_accelerate(wishdir, wishspeed, float(cfg[\"airaccelerate\"]), dt)\n\t\t\t_clamp_velocity()\n\t\t\t_move(dt, jumped)\n\n\t\t_check_ground()\n\t\tbody.velocity.y -= g * 0.5 * dt                                   # FinishGravity (the jump tick gets it twice, like Source)\n\t\tif on_ground and body.velocity.y < 0.0:\n\t\t\tbody.velocity.y = 0.0\n\t\tground_ticks = ground_ticks + 1 if on_ground else 0\n\t\tcur_pos = body.global_position\n\n\t# ---------------------------------------------------------------- pieces\n\n\tfunc _check_ground() -> void:\n\t\ton_ground = false\n\t\tground_normal = Vector3.UP\n\t\tif body.velocity.y > 140.0 * U:\n\t\t\treturn                                                        # leaving the ground fast\n\t\tvar p := PhysicsTestMotionParameters3D.new()\n\t\tp.from = body.global_transform\n\t\tp.motion = Vector3.DOWN * 2.0 * U\n\t\tp.max_collisions = 4\n\t\tp.margin = 0.001\n\t\tvar r := PhysicsTestMotionResult3D.new()\n\t\tif PhysicsServer3D.body_test_motion(body.get_rid(), p, r):\n\t\t\tfor i in r.get_collision_count():\n\t\t\t\tvar n := r.get_collision_normal(i)\n\t\t\t\tif n.y >= 0.7:\n\t\t\t\t\ton_ground = true\n\t\t\t\t\tground_normal = n\n\t\t\t\t\treturn\n\n\tfunc _friction(dt: float) -> void:\n\t\tvar v := body.velocity\n\t\tvar speed := Vector2(v.x, v.z).length()\n\t\tif speed < 0.1 * U:\n\t\t\treturn\n\t\tvar control := maxf(speed, float(cfg[\"stopspeed\"]) * U)\n\t\tvar drop := control * float(cfg[\"friction\"]) * dt\n\t\tvar ns := maxf(speed - drop, 0.0)\n\t\tvar k := ns / speed\n\t\tbody.velocity.x *= k\n\t\tbody.velocity.z *= k\n\n\tfunc _accelerate(wishdir: Vector3, wishspeed: float, accel: float, dt: float) -> void:\n\t\tif wishspeed <= 0.0:\n\t\t\treturn\n\t\tvar cur := Vector2(body.velocity.x, body.velocity.z).dot(Vector2(wishdir.x, wishdir.z))\n\t\tvar add := wishspeed - cur\n\t\tif add <= 0.0:\n\t\t\treturn\n\t\tvar a := minf(accel * dt * wishspeed, add)\n\t\tbody.velocity.x += a * wishdir.x\n\t\tbody.velocity.z += a * wishdir.z\n\n\tfunc _air_accelerate(wishdir: Vector3, wishspeed: float, accel: float, dt: float) -> void:\n\t\tif wishspeed <= 0.0:\n\t\t\treturn\n\t\tvar wishspd := minf(wishspeed, float(cfg[\"airspeed_cap\"]) * U)     # the 30 u/s cap = air strafing\n\t\tvar cur := Vector2(body.velocity.x, body.velocity.z).dot(Vector2(wishdir.x, wishdir.z))\n\t\tvar add := wishspd - cur\n\t\tif add <= 0.0:\n\t\t\treturn\n\t\tvar a := minf(accel * wishspeed * dt, add)\n\t\tbody.velocity.x += a * wishdir.x\n\t\tbody.velocity.z += a * wishdir.z\n\n\tfunc _do_jump(walk: bool) -> void:\n\t\tlast_prespeed = speed_u()\n\t\tif ground_ticks <= 1:\n\t\t\tbhops += 1\n\t\telse:\n\t\t\tbhops = 0\n\t\tjumps_total += 1\n\t\tvar cap := float(cfg[\"bhop_cap\"])\n\t\tif cap > 0.0:                                                     # CS:GO PreventBunnyJumping\n\t\t\tvar maxs := float(cfg[\"maxspeed\"]) * U * cap\n\t\t\tif walk:\n\t\t\t\tmaxs *= float(cfg[\"walk_speed\"])\n\t\t\tvar sp := Vector2(body.velocity.x, body.velocity.z).length()\n\t\t\tif sp > maxs:\n\t\t\t\tvar k := maxs / sp\n\t\t\t\tbody.velocity.x *= k\n\t\t\t\tbody.velocity.z *= k\n\t\tbody.velocity.y = float(cfg[\"jump_speed\"]) * U\n\t\tbody.velocity.y -= float(cfg[\"gravity\"]) * U * 0.5 * get_physics_process_delta_time()\n\t\ton_ground = false\n\n\tfunc _clamp_velocity() -> void:\n\t\tvar m := float(cfg[\"maxvelocity\"]) * U\n\t\tbody.velocity = body.velocity.clamp(Vector3(-m, -m, -m), Vector3(m, m, m))\n\n\tfunc _move(dt: float, jumped: bool) -> void:\n\t\tvar start := body.global_position\n\t\tvar vel0 := body.velocity\n\t\tvar was_ground := on_ground\n\t\tbody.move_and_slide()\n\t\tvar stepsize := float(cfg[\"stepsize\"]) * U\n\t\t# stairs\n\t\tif was_ground and not jumped:\n\t\t\tvar want := Vector2(vel0.x, vel0.z).length() * dt\n\t\t\tvar moved := Vector2(body.global_position.x - start.x, body.global_position.z - start.z).length()\n\t\t\tif want > 0.0005 and moved < want * 0.98:\n\t\t\t\tvar end_pos := body.global_position\n\t\t\t\tvar end_vel := body.velocity\n\t\t\t\tbody.global_position = start\n\t\t\t\tbody.move_and_collide(Vector3.UP * stepsize, false, 0.001)\n\t\t\t\tbody.velocity = Vector3(vel0.x, 0.0, vel0.z)\n\t\t\t\tbody.move_and_slide()\n\t\t\t\tvar down := body.move_and_collide(Vector3.DOWN * (stepsize + 0.02), false, 0.001)\n\t\t\t\tvar ok := false\n\t\t\t\tif down != null and down.get_normal().y >= 0.7:\n\t\t\t\t\tvar moved2 := Vector2(body.global_position.x - start.x, body.global_position.z - start.z).length()\n\t\t\t\t\tif moved2 > moved + 0.002:\n\t\t\t\t\t\tok = true\n\t\t\t\tif ok:\n\t\t\t\t\tview_comp -= body.global_position.y - start.y\n\t\t\t\t\tbody.velocity = Vector3(body.velocity.x, 0.0, body.velocity.z)\n\t\t\t\telse:\n\t\t\t\t\tbody.global_position = end_pos\n\t\t\t\t\tbody.velocity = end_vel\n\t\t# stay glued to ramps / stairs going down\n\t\tif was_ground and not jumped and body.velocity.y <= 0.001:\n\t\t\tvar test := body.move_and_collide(Vector3.DOWN * stepsize, true, 0.001)\n\t\t\tif test != null and test.get_normal().y >= 0.7:\n\t\t\t\tvar d := test.get_travel().length()\n\t\t\t\tif d > 0.0003:\n\t\t\t\t\tbody.move_and_collide(Vector3.DOWN * d, false, 0.001)\n\t\t\t\t\tview_comp += d\n\n\tfunc _update_duck(want: bool) -> void:\n\t\tvar diff := (float(cfg[\"hull_h\"]) - float(cfg[\"hull_duck\"])) * U\n\t\tif want and not ducked:\n\t\t\tducked = true\n\t\t\tif not on_ground:\n\t\t\t\tbody.global_position.y += diff                            # crouch-jump: legs pull up\n\t\t\t\tview_comp -= diff\n\t\t\t_apply_hull(true)\n\t\telif not want and ducked:\n\t\t\tvar shift := 0.0 if on_ground else diff\n\t\t\tif _room_to_stand(shift):\n\t\t\t\tducked = false\n\t\t\t\tif not on_ground:\n\t\t\t\t\tbody.global_position.y -= shift\n\t\t\t\t\tview_comp += shift\n\t\t\t\t_apply_hull(false)\n\n\tfunc _room_to_stand(shift: float) -> bool:\n\t\tvar w := float(cfg[\"hull_w\"]) * U\n\t\tvar h := float(cfg[\"hull_h\"]) * U\n\t\tvar sh := BoxShape3D.new()\n\t\tsh.size = Vector3(w - 0.004, h - 0.01, w - 0.004)\n\t\tvar q := PhysicsShapeQueryParameters3D.new()\n\t\tq.shape = sh\n\t\tq.transform = Transform3D(Basis.IDENTITY, body.global_position + Vector3(0, h * 0.5 - shift + 0.006, 0))\n\t\tq.collision_mask = body.collision_mask\n\t\tq.exclude = [body.get_rid()]\n\t\tvar res := body.get_world_3d().direct_space_state.intersect_shape(q, 1)\n\t\treturn res.is_empty()\n\n\t# --- ladders: Area3D in group \"cdt_ladder\" (or \"ladder\")\n\n\tfunc _find_ladder() -> Area3D:\n\t\tfor g in [\"cdt_ladder\", \"ladder\"]:\n\t\t\tfor n in get_tree().get_nodes_in_group(g):\n\t\t\t\tif n is Area3D and (n as Area3D).overlaps_body(body):\n\t\t\t\t\treturn n\n\t\treturn null\n\n\tfunc _ladder_move(f: float, s: float, pressed: bool) -> void:\n\t\tvar sp := float(cfg[\"ladder_speed\"]) * U\n\t\tvar look_up := -sin(pitch) if own_view else 0.35\n\t\tvar vy := f * sp * (1.0 if look_up >= -0.05 else -1.0)\n\t\tbody.velocity = Vector3(0, vy, 0) + Basis(Vector3.UP, yaw).x * s * sp * 0.5\n\t\tif pressed:                                                       # jump off, away from the ladder\n\t\t\tbody.velocity = Basis(Vector3.UP, yaw).z * sp * 0.9                # push off the ladder, away from the view\n\t\t\tbody.velocity.y = sp * 0.6\n\t\t\ton_ladder = false\n\t\tbody.move_and_slide()\n"</script>
+<script>
+(function () {
+  "use strict";
+  var VERSION = "1.0.0";
+  var SRC = JSON.parse(document.getElementById("src-json").textContent);
+
+  /* ---------- emblem: a disc with 15 % cut out, its edge tilted 15 degrees ---------- */
+  var TILT = 15, WEDGE = 54;
+  function pt(r, deg) { var a = deg * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a)]; }
+  function f(n) { return n.toFixed(2); }
+  function emblem(id, opts) {
+    opts = opts || {};
+    var R = 120, RI = 44, a1 = -TILT, a0 = a1 - WEDGE, end = a0 + 360;
+    var o1 = pt(R, a1), o2 = pt(R, end), i1 = pt(RI + 6, a1), i2 = pt(RI + 6, end);
+    var disc = "M" + f(o1[0]) + " " + f(o1[1]) + " A" + R + " " + R + " 0 1 1 " + f(o2[0]) + " " + f(o2[1]) +
+      " L" + f(i2[0]) + " " + f(i2[1]) + " A" + (RI + 6) + " " + (RI + 6) + " 0 1 0 " + f(i1[0]) + " " + f(i1[1]) + " Z";
+    var ticks = "", d;
+    for (d = 0; d < 360; d += 6) {
+      var ang = d - 90, rel = ((ang - a1) % 360 + 360) % 360;
+      if (rel > 360 - WEDGE - 6 && rel < 360) { /* skip ticks beside the cut, keep it clean */ }
+      var long = d % 30 === 0, p = pt(long ? 150 : 156, ang), q = pt(166, ang);
+      ticks += '<line x1="' + f(p[0]) + '" y1="' + f(p[1]) + '" x2="' + f(q[0]) + '" y2="' + f(q[1]) + '" stroke="' + (long ? "#c9cde0" : "#6a6f88") + '" stroke-width="' + (long ? 2.4 : 1.2) + '" opacity="' + (long ? 0.9 : 0.6) + '"/>';
+    }
+    var grooves = "";
+    for (d = 0; d < 11; d++) {
+      var rr = 54 + d * 6.2;
+      grooves += '<circle r="' + f(rr) + '" fill="none" stroke="#000" stroke-opacity="' + (d % 3 === 0 ? 0.34 : 0.18) + '" stroke-width="1"/>';
+    }
+    var sheen = "";
+    [[-150, 70, 110, 0.26], [40, 60, 120, 0.2], [110, 80, 105, 0.16]].forEach(function (s) {
+      var A = pt(s[2] * 0.93, s[0]), B = pt(s[2] * 0.93, s[0] + s[1]);
+      sheen += '<path d="M' + f(A[0]) + " " + f(A[1]) + " A" + f(s[2] * 0.93) + " " + f(s[2] * 0.93) + " 0 0 1 " + f(B[0]) + " " + f(B[1]) + '" fill="none" stroke="#fff" stroke-opacity="' + s[3] + '" stroke-width="3" stroke-linecap="round"/>';
+    });
+    var e0a = pt(RI + 6, a1), e0b = pt(R + 10, a1), e1a = pt(RI + 6, a0), e1b = pt(R + 10, a0);
+    var dashA = pt(R + 4, a0), dashB = pt(R + 4, a1);
+    var am = (a0 + a1) / 2, tip = pt(150, am), dirv = pt(1, am), perp = [-dirv[1], dirv[0]];
+    var tri = [tip, [tip[0] - dirv[0] * 14 + perp[0] * 7, tip[1] - dirv[1] * 14 + perp[1] * 7], [tip[0] - dirv[0] * 14 - perp[0] * 7, tip[1] - dirv[1] * 14 - perp[1] * 7]];
+    var corners = "";
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c) {
+      var x = c[0] * 188, y = c[1] * 188;
+      corners += '<path d="M' + (x - c[0] * 22) + " " + y + " L" + x + " " + y + " L" + x + " " + (y - c[1] * 22) + '" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="2"/>';
+    });
+    var dots = "";
+    [[-170, 5, 1], [118, 4, .8], [64, 3, .7], [-100, 3, .6]].forEach(function (dd) {
+      var p = pt(176, dd[0]); dots += '<circle cx="' + f(p[0]) + '" cy="' + f(p[1]) + '" r="' + dd[1] + '" fill="#ff9a3c" opacity="' + dd[2] + '"/>';
+    });
+    var px = pt(176, am); var pix = "";
+    for (d = 0; d < 3; d++) pix += '<rect x="' + f(px[0] + 18 + d * 8) + '" y="' + f(px[1] - 22 - d * 8) + '" width="5" height="5" fill="#ff9a3c" opacity="' + (0.35 + d * 0.28) + '"/>';
+    var ring0 = pt(86, a1 + 8);
+    return '<svg class="' + (opts.cls || "") + '" viewBox="-200 -200 400 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CdiskTex logo">' +
+      '<defs>' +
+      '<linearGradient id="' + id + 'g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc13a"/><stop offset=".5" stop-color="#ff7f1f"/><stop offset="1" stop-color="#c92d0c"/></linearGradient>' +
+      '<radialGradient id="' + id + 'h" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff7f1f" stop-opacity=".30"/><stop offset="1" stop-color="#ff7f1f" stop-opacity="0"/></radialGradient>' +
+      '<clipPath id="' + id + 'c"><path d="' + disc + '"/></clipPath>' +
+      '<path id="' + id + 't" d="M' + f(ring0[0]) + " " + f(ring0[1]) + " A86 86 0 1 1 " + f(pt(86, a1 + 8 + 300.0 - 0.01)[0]) + " " + f(pt(86, a1 + 8 + 300.0 - 0.01)[1]) + '"/>' +
+      '</defs>' +
+      '<circle r="196" fill="url(#' + id + 'h)"/>' +
+      '<circle r="178" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2" stroke-dasharray="560 600" transform="rotate(-40)"/>' +
+      '<g class="' + (opts.spin ? "spin" : "") + '">' + ticks + '</g>' +
+      '<path d="M' + f(dashA[0]) + " " + f(dashA[1]) + " A" + (R + 4) + " " + (R + 4) + " 0 0 1 " + f(dashB[0]) + " " + f(dashB[1]) + '" fill="none" stroke="#ffb02e" stroke-opacity=".55" stroke-width="2.4" stroke-dasharray="7 9"/>' +
+      '<path d="M' + f(pt(R * 0.3, a0)[0]) + " " + f(pt(R * 0.3, a0)[1]) + " L" + f(pt(R + 4, a0)[0]) + " " + f(pt(R + 4, a0)[1]) + " A" + (R + 4) + " " + (R + 4) + " 0 0 1 " + f(pt(R + 4, a1)[0]) + " " + f(pt(R + 4, a1)[1]) + " L" + f(pt(R * 0.3, a1)[0]) + " " + f(pt(R * 0.3, a1)[1]) + ' Z" fill="#ff7f1f" fill-opacity=".07"/>' +
+      '<path d="' + disc + '" fill="url(#' + id + 'g)"/>' +
+      '<g clip-path="url(#' + id + 'c)">' + grooves + sheen + '</g>' +
+      '<path d="' + disc + '" fill="none" stroke="#ffe9c9" stroke-opacity=".9" stroke-width="2.2"/>' +
+      '<line x1="' + f(e0a[0]) + '" y1="' + f(e0a[1]) + '" x2="' + f(e0b[0]) + '" y2="' + f(e0b[1]) + '" stroke="#ff7f1f" stroke-width="3.2" stroke-linecap="round"/>' +
+      '<line x1="' + f(e1a[0]) + '" y1="' + f(e1a[1]) + '" x2="' + f(e1b[0]) + '" y2="' + f(e1b[1]) + '" stroke="#ff7f1f" stroke-width="3.2" stroke-linecap="round"/>' +
+      '<text font-family="IBM Plex Mono, monospace" font-size="8.6" font-weight="500" fill="#2a0d03" fill-opacity=".62" letter-spacing="1.4"><textPath href="#' + id + 't" textLength="440" lengthAdjust="spacing">CENTER DISKENT TEX · CDT · CENTER DISKENT TEX · CDT ·</textPath></text>' +
+      '<circle r="' + (RI + 8) + '" fill="#07080c"/>' +
+      '<circle r="' + (RI + 4) + '" fill="#0b0d14" stroke="#ff7f1f" stroke-width="4"/>' +
+      '<circle r="' + (RI - 4) + '" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>' +
+      '<text x="0" y="13" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="46" font-weight="600"><tspan fill="#f4f5fa">C</tspan><tspan fill="#ff7f1f">d</tspan></text>' +
+      '<polygon points="' + tri.map(function (t) { return f(t[0]) + "," + f(t[1]); }).join(" ") + '" fill="#ff7f1f"/>' +
+      corners + dots + pix +
+      '</svg>';
+  }
+  document.getElementById("splash-emb").innerHTML = emblem("s", { cls: "emb", spin: true });
+  document.getElementById("hero-emb").innerHTML = emblem("h", { cls: "emb", spin: true });
+  document.getElementById("brand-emb").innerHTML = emblem("b", {});
+
+  /* ---------- splash ---------- */
+  var splash = document.getElementById("splash"), page = document.getElementById("page"), closed = false;
+  function closeSplash(target) {
+    if (closed) return; closed = true;
+    splash.classList.add("gone"); page.removeAttribute("aria-hidden");
+    window.removeEventListener("keydown", onKey);
+    if (target) setTimeout(function () { var el = document.querySelector(target); if (el) el.scrollIntoView(); }, 30);
+  }
+  function onKey(e) { if (e.key === "Tab" || e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return; closeSplash(); }
+  window.addEventListener("keydown", onKey);
+  splash.addEventListener("pointerdown", function (e) { if (e.target.id !== "skip") closeSplash(); });
+  document.getElementById("skip").addEventListener("click", function (e) { e.stopPropagation(); closeSplash("#download"); });
+  setTimeout(function () { try { document.getElementById("skip").focus({ preventScroll: true }); } catch (e) {} }, 400);
+
+  /* ---------- text (EN / RU) ---------- */
+  var T = {
+    en: {
+      press: "PRESS ANY KEY", skip: "or go to the free download ↓",
+      n_dl: "Download", n_in: "Install", n_mv: "Movement", n_te: "Tested",
+      eyebrow: "Free · one file · Godot 4",
+      lede: "Center Diskent Tex (CDT). Drop one GDScript file into any Godot 4 project and get Counter-Strike style movement: bunnyhop, air strafing, crouch, stairs and ladders. It installs itself and shows its logo before your game starts.",
+      b_zip: "Download free (.zip)", b_gd: "Only the .gd (saved as .txt)", b_cp: "Copy source", lines: "lines", free: "free, no sign-up",
+      in_eye: "Install", in_h: "Ready in under a minute",
+      in_p: "Two ways. Both end with the same autoload called CDT, so you can call it from any script.",
+      a_h: "A. Autoload", b_h: "B. Attach once",
+      a1: "Copy cdisktex_engine.gd anywhere in your project.",
+      a2: "Project > Project Settings > Globals > Autoload. Pick the file, set the name to CDT, press Add.",
+      a3: "Run the game.",
+      b1: "Copy cdisktex_engine.gd anywhere in your project.",
+      b2: "Add any Node to any scene and attach the file to it as its script. It is a tool script, so it registers itself as the CDT autoload and saves project.godot.",
+      b3: "Run the game. You can delete the node afterwards.",
+      run: "On run, CDT shows its logo, then takes over every CharacterBody3D named player (or in the group player or cdt_player), with its origin at the feet. If your scene has none, it spawns its own first-person player. Settings are saved to user://cdisktex_engine.cfg.",
+      mv_eye: "Movement", mv_h: "The numbers behind the feel",
+      mv_p: "Source units, 64 tick, mouse at 0.022 degrees per count like Counter-Strike. One unit is 0.01905 m. Press F4 in game to cycle presets.",
+      t_p: "Preset",
+      mv_note: "Air strafing uses the 30 u/s wish-speed cap, jumping happens before friction so a hop on the first ground tick keeps your speed, and csgo adds the 1.1× jump speed cap.",
+      k_h: "Controls (built-in player)", api_h: "Script API",
+      k1: "move", k2: "jump", k3: "crouch", k4: "walk", k5: "speed HUD", k6: "next preset", k7: "autohop on/off", k8: "sensitivity",
+      te_eye: "Tested", te_h: "Measured in Godot 4.4.1 at 64 tick",
+      te_p: "Headless runs on a flat floor, one tick at a time. These are the values the build printed.",
+      s1: "standing jump apex, 47 ticks in the air", s2: "0 to 250 u/s on the ground (12 ticks)", s3: "250 u/s to a full stop (26 ticks)",
+      s4: "after 11 air-strafed bunnyhops (cs2 and css presets)", s5: "step is climbed; a 19 u step blocks you", s6: "hull height standing to crouched, in units",
+      lim_h: "What it does not do",
+      l1: "No sub-tick input and no CS:GO stamina. A per-tick jump buffer and 64 tick approximate them.",
+      l2: "Surfing is approximated by Godot's move_and_slide, not Source's clip-velocity code.",
+      l3: "3D only. The player origin must be at the feet for takeover to work.",
+      l4: "It is an independent re-implementation of the published movement formulas. It is not Source or Source 2 and has no code from them.",
+      src: "View the full source",
+      foot1: "CdiskTex Engine is free to use in any project, commercial ones included. No warranty.",
+      foot2: "Not affiliated with Valve. Source, Source 2 and Counter-Strike belong to their owners."
+    },
+    ru: {
+      press: "НАЖМИТЕ ЛЮБУЮ КЛАВИШУ", skip: "или перейти к бесплатной загрузке ↓",
+      n_dl: "Скачать", n_in: "Установка", n_mv: "Мувемент", n_te: "Проверка",
+      eyebrow: "Бесплатно · один файл · Godot 4",
+      lede: "Center Diskent Tex (CDT). Положите один GDScript-файл в любой проект Godot 4 и получите мувемент как в Counter-Strike: банихоп, air strafe, присед, лестницы. Файл ставит себя сам и показывает своё лого перед запуском игры.",
+      b_zip: "Скачать бесплатно (.zip)", b_gd: "Только .gd (сохранится как .txt)", b_cp: "Копировать код", lines: "строк", free: "бесплатно, без регистрации",
+      in_eye: "Установка", in_h: "Готово меньше чем за минуту",
+      in_p: "Два способа. В обоих получается один и тот же автозагрузчик CDT, его можно вызывать из любого скрипта.",
+      a_h: "A. Автозагрузка", b_h: "B. Прикрепить один раз",
+      a1: "Скопируйте cdisktex_engine.gd куда угодно в проект.",
+      a2: "Project > Project Settings > Globals > Autoload. Выберите файл, имя CDT, нажмите Add.",
+      a3: "Запустите игру.",
+      b1: "Скопируйте cdisktex_engine.gd куда угодно в проект.",
+      b2: "Добавьте любой Node в любую сцену и прикрепите файл как скрипт. Это tool-скрипт: он сам зарегистрируется как автозагрузка CDT и сохранит project.godot.",
+      b3: "Запустите игру. Потом узел можно удалить.",
+      run: "При запуске CDT показывает лого, затем берёт под управление каждый CharacterBody3D с именем player (или из группы player / cdt_player), у которого начало координат в ногах. Если в сцене такого нет, он создаёт своего игрока от первого лица. Настройки сохраняются в user://cdisktex_engine.cfg.",
+      mv_eye: "Мувемент", mv_h: "Цифры, из которых складывается ощущение",
+      mv_p: "Юниты Source, 64 тик, мышь 0.022 градуса на отсчёт как в Counter-Strike. Один юнит это 0.01905 м. F4 в игре переключает пресеты.",
+      t_p: "Пресет",
+      mv_note: "Air strafe использует лимит желаемой скорости 30 u/s, прыжок идёт до трения, поэтому прыжок на первом тике земли сохраняет скорость, а csgo добавляет лимит 1.1× на скорость прыжка.",
+      k_h: "Управление (встроенный игрок)", api_h: "API для скриптов",
+      k1: "движение", k2: "прыжок", k3: "присед", k4: "шаг", k5: "HUD скорости", k6: "след. пресет", k7: "автохоп вкл/выкл", k8: "чувствительность",
+      te_eye: "Проверка", te_h: "Замеры в Godot 4.4.1 на 64 тик",
+      te_p: "Запуски без окна на ровном полу, по одному тику. Это значения, которые вывела сборка.",
+      s1: "высота прыжка с места, 47 тиков в воздухе", s2: "0 до 250 u/s на земле (12 тиков)", s3: "от 250 u/s до остановки (26 тиков)",
+      s4: "после 11 банихопов с air strafe (пресеты cs2 и css)", s5: "ступенька берётся, а 19 u уже блокирует", s6: "высота хитбокса стоя и в приседе, в юнитах",
+      lim_h: "Чего здесь нет",
+      l1: "Нет sub-tick ввода и стамины CS:GO. Их приближает буфер прыжка на каждый тик и 64 тик.",
+      l2: "Серфинг приближённый, через move_and_slide Godot, а не через код clip-velocity из Source.",
+      l3: "Только 3D. Для takeover начало координат игрока должно быть в ногах.",
+      l4: "Это независимая реализация опубликованных формул мувемента. Это не Source и не Source 2, кода оттуда здесь нет.",
+      src: "Показать весь исходный код",
+      foot1: "CdiskTex Engine можно бесплатно использовать в любом проекте, в том числе коммерческом. Без гарантий.",
+      foot2: "Не связано с Valve. Source, Source 2 и Counter-Strike принадлежат их владельцам."
+    }
+  };
+  var lang = "en";
+  try { lang = localStorage.getItem("cdt_lang") || (/^ru/i.test(navigator.language || "") ? "ru" : "en"); } catch (e) { lang = /^ru/i.test(navigator.language || "") ? "ru" : "en"; }
+  function applyLang() {
+    var d = T[lang];
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i]").forEach(function (el) { var k = el.getAttribute("data-i"); if (d[k] != null) el.textContent = d[k]; });
+    document.getElementById("lang").textContent = lang === "en" ? "RU" : "EN";
+    try { localStorage.setItem("cdt_lang", lang); } catch (e) {}
+  }
+  document.getElementById("lang").addEventListener("click", function () { lang = lang === "en" ? "ru" : "en"; applyLang(); });
+  applyLang();
+
+  /* ---------- download ---------- */
+  var enc = new TextEncoder();
+  var crcT = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(b) { var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zip(files) {
+    var parts = [], central = [], off = 0, dosT = (12 << 11), dosD = ((2026 - 1980) << 9) | (1 << 5) | 1;
+    function u16(v) { return [v & 255, (v >> 8) & 255]; }
+    function u32(v) { return [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255]; }
+    files.forEach(function (fl) {
+      var name = enc.encode(fl.name), data = fl.data, crc = crc32(data);
+      var lh = [0x50, 0x4b, 3, 4].concat(u16(20), u16(0x0800), u16(0), u16(dosT), u16(dosD), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+      parts.push(new Uint8Array(lh), name, data);
+      central.push({ h: [0x50, 0x4b, 1, 2].concat(u16(20), u16(20), u16(0x0800), u16(0), u16(dosT), u16(dosD), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(off)), name: name });
+      off += lh.length + name.length + data.length;
+    });
+    var cs = 0;
+    central.forEach(function (c) { parts.push(new Uint8Array(c.h), c.name); cs += c.h.length + c.name.length; });
+    parts.push(new Uint8Array([0x50, 0x4b, 5, 6].concat(u16(0), u16(0), u16(files.length), u16(files.length), u32(cs), u32(off), u16(0))));
+    return new Blob(parts, { type: "application/zip" });
+  }
+  var README = "CdiskTex Engine (CDT) - Center Diskent Tex  v" + VERSION + "\r\n\r\n" +
+    "1. Copy cdisktex_engine.gd into your Godot 4 project.\r\n" +
+    "2. Either add it under Project Settings > Globals > Autoload with the name CDT,\r\n" +
+    "   or attach it as a script to any Node in any scene (it registers itself).\r\n" +
+    "3. Run the game.\r\n\r\n" +
+    "Free for any use. No warranty. Not affiliated with Valve.\r\n";
+  var status = document.getElementById("status");
+  function say(msg, warn) { status.textContent = msg; status.className = warn ? "warn" : ""; }
+  document.getElementById("src-view").value = SRC;
+
+  var dl = null;
+  (function () { try { if (window.claude && window.claude.use) { window.claude.use("downloads").then(function (d) { dl = d; }, function () {}); } } catch (e) {} })();
+
+  async function save(name, data) {
+    if (!dl && window.claude && window.claude.use) { try { dl = await window.claude.use("downloads"); } catch (e) {} }
+    if (!dl) {                                   /* normal website (GitHub Pages etc.): plain browser download */
+      try {
+        var url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: "text/plain" }));
+        var a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        say(lang === "ru" ? "Скачивается: " + name : "Downloading: " + name, false);
+      } catch (e) {
+        say(lang === "ru" ? "Не удалось скачать. Нажмите «Копировать код»." : "Could not download. Use Copy source.", true);
+      }
+      return;
+    }
+    try { await dl.save({ filename: name, data: data }); say(lang === "ru" ? "Сохранено: " + name : "Saved: " + name, false); }
+    catch (e) { var c = e && e.code; say(c === "declined" ? (lang === "ru" ? "Загрузка отменена." : "Download cancelled.") : (lang === "ru" ? "Не удалось сохранить (" + (c || "ошибка") + ")." : "Could not save (" + (c || "error") + ")."), true); }
+  }
+  document.getElementById("dl-zip").addEventListener("click", function () {
+    var z = zip([{ name: "CdiskTex/cdisktex_engine.gd", data: enc.encode(SRC) }, { name: "CdiskTex/README.txt", data: enc.encode(README) }]);
+    save("CdiskTex_Engine_" + VERSION + ".zip", z);
+  });
+  document.getElementById("dl-gd").addEventListener("click", function () { save("cdisktex_engine.gd.txt", SRC); });
+  document.getElementById("cp").addEventListener("click", function () {
+    var ok = function () { say(lang === "ru" ? "Скопировано. Вставьте в файл cdisktex_engine.gd." : "Copied. Paste it into a file named cdisktex_engine.gd.", false); };
+    var fb = function () {
+      var ta = document.getElementById("src-view"); ta.closest("details").open = true; ta.focus(); ta.select();
+      say(lang === "ru" ? "Код выделен ниже. Нажмите Ctrl+C." : "The source is selected below. Press Ctrl+C.", true);
+    };
+    try { navigator.clipboard.writeText(SRC).then(ok, fb); } catch (e) { fb(); }
+  });
+})();
+</script>
+
+</body>
+</html>
