@@ -1,7 +1,7 @@
 @tool
 extends Node
 ## ============================================================================
-##  CdiskTex Engine  (CDT)  -  Center Diskent Tex            version 1.0.0
+##  CdiskTex Engine  (CDT)  -  Center Diskent Tex            version 1.1.0
 ##  One file. Godot 4.x. Free.
 ##
 ##  Gives any 3D Godot project Source-engine style player movement:
@@ -25,7 +25,7 @@ extends Node
 ##  Settings are saved to  user://cdisktex_engine.cfg  automatically.
 ##
 ##  KEYS (own player):  WASD move | Space or Mouse Wheel jump | Ctrl duck |
-##    Shift walk | Esc release mouse | F3 HUD | F4 next preset | F5 autohop |
+##    Shift walk | Esc release mouse | F2 settings | F3 HUD | F4 next preset | F5 autohop |
 ##    F6 sensitivity - / F7 sensitivity +
 ##
 ##  API (autoload "CDT"):
@@ -35,13 +35,29 @@ extends Node
 ##    CDT.cfg["maxspeed"] = 260.0        # any value below, Source units/s
 ##    CDT.controller()                   # speed_u(), bhops, on_ground ...
 ##
+##  F2 opens the in-game settings panel (preset, sensitivity, FOV, autohop...).
+##
+##  YOUR OWN PLAYER (optional, 1.1): CDT finds your player by itself (the body
+##  that carries the current camera). To let your script keep its camera / recoil
+##  / interaction code, give your CharacterBody3D this method, and CDT will drive
+##  only the movement:
+##      func _cdt_attached(c) -> void:      # c = the CDT controller
+##          c.map_actions({"forward": "move_forward", "back": "move_back",
+##              "left": "move_left", "right": "move_right", "jump": "jump",
+##              "duck": "crouch", "walk": ""})       # use YOUR input actions
+##          c.wheel_jump = false            # leave the mouse wheel alone
+##          c.require_capture = true        # no movement while the mouse is free
+##  then, every physics tick, read  c.ducked / c.duck_t / c.view_comp  for your
+##  camera height, set  c.input_blocked = true  while a menu is open and
+##  c.enabled = false while you move the body yourself (fly mode etc).
+##
 ##  Units are Source units (1 unit = 0.01905 m), like the real thing.
 ##  Get updates / the source file:  see SITE_URL below.
 ##  License: free for any use, commercial included. No warranty. Independent
 ##  work, not affiliated with Valve; "Source" and "Counter-Strike" are theirs.
 ## ============================================================================
 
-const VERSION := "1.0.0"
+const VERSION := "1.1.0"
 const SITE_URL := "https://qusderlol-glitch.github.io/CdiskTex-Engine/"
 const U := 0.01905                       # metres per Source unit
 const AUTOLOAD_NAME := "CDT"
@@ -102,6 +118,13 @@ var _saved_mouse := Input.MOUSE_MODE_VISIBLE
 var _last_scene: Node = null
 var _scan_wait := 0
 var _spawn_tried := false
+var _scan_i := 0
+var _scan_found := false
+static var menu_open := false
+var _menu_layer: CanvasLayer
+var _menu_prev_mouse := Input.MOUSE_MODE_VISIBLE
+var _menu_prev_paused := false
+const SCAN_STEPS := [3, 30, 90, 240]
 
 # ============================================================================
 #  startup / self-install
@@ -152,11 +175,6 @@ func _make_actions() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = ACTION_KEYS[a]
 			InputMap.action_add_event(a, ev)
-	if bool(cfg["jump_wheel"]):
-		for b in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-			var mb := InputEventMouseButton.new()
-			mb.button_index = b
-			InputMap.action_add_event("cdt_jump", mb)
 
 func _load_cfg() -> void:
 	var f := ConfigFile.new()
@@ -208,13 +226,18 @@ func _process(dt: float) -> void:
 	var scn := get_tree().current_scene
 	if scn != _last_scene:
 		_last_scene = scn
-		_scan_wait = 3
+		_scan_i = 0
+		_scan_wait = SCAN_STEPS[0]
 		_spawn_tried = false
+		_scan_found = false
 		_controllers = _controllers.filter(func(c): return is_instance_valid(c))
 	if _scan_wait > 0:
 		_scan_wait -= 1
 		if _scan_wait == 0 and scn != null:
 			_scan_scene(scn)
+			if not _scan_found and _scan_i < SCAN_STEPS.size() - 1:      # a player spawned later is still found
+				_scan_i += 1
+				_scan_wait = SCAN_STEPS[_scan_i] - SCAN_STEPS[_scan_i - 1]
 	_update_hud()
 
 func _scan_scene(scn: Node) -> void:
@@ -225,6 +248,15 @@ func _scan_scene(scn: Node) -> void:
 			for n in get_tree().get_nodes_in_group(g):
 				if n is CharacterBody3D and not cand.has(n):
 					cand.append(n)
+		var cam := scn.get_viewport().get_camera_3d()                   # the body that carries the camera you look through
+		if cam != null:
+			var a: Node = cam.get_parent()
+			while a != null and a != scn.get_parent():
+				if a is CharacterBody3D:
+					if not cand.has(a):
+						cand.append(a)
+					break
+				a = a.get_parent()
 		for n in scn.find_children("*", "CharacterBody3D", true, false):
 			if (n as Node).name.to_lower().contains("player") and not cand.has(n):
 				cand.append(n)
@@ -234,7 +266,10 @@ func _scan_scene(scn: Node) -> void:
 				continue
 			attach(n as CharacterBody3D, false)
 			found = true
-	if not found and bool(cfg["auto_spawn"]) and scn is Node3D and not _spawn_tried:
+	var has_cam := scn.get_viewport().get_camera_3d() != null
+	if found:
+		_scan_found = true
+	elif not has_cam and bool(cfg["auto_spawn"]) and scn is Node3D and not _spawn_tried:
 		_spawn_tried = true
 		var has_world := false
 		for n in scn.find_children("*", "CollisionObject3D", true, false):
@@ -248,6 +283,7 @@ func _scan_scene(scn: Node) -> void:
 					sp = (m as Node3D).global_position
 					break
 			spawn_player(sp)
+			_scan_found = true
 
 ## Spawn CDT's own first-person player.
 func spawn_player(pos: Vector3) -> CharacterBody3D:
@@ -284,10 +320,25 @@ func _input(event: InputEvent) -> void:
 	if _splash_open:
 		_splash_input(event)
 		return
-	if event.is_action_pressed("cdt_jump") and not event.is_echo():
-		for c in _controllers:
-			if is_instance_valid(c):
-				(c as CDTController).jump_buffer = true
+	if menu_open:
+		if event is InputEventKey and event.pressed and not event.echo and ((event as InputEventKey).physical_keycode == KEY_F2 or (event as InputEventKey).physical_keycode == KEY_ESCAPE):
+			_toggle_menu()
+			get_viewport().set_input_as_handled()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_F2:
+		_toggle_menu()
+		get_viewport().set_input_as_handled()
+		return
+	var wheel: bool = event is InputEventMouseButton and event.pressed and ((event as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP or (event as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_DOWN)
+	for c in _controllers:
+		if not is_instance_valid(c):
+			continue
+		var cc := c as CDTController
+		var ja: String = cc.acts["jump"]
+		if ja != "" and event.is_action_pressed(ja) and not event.is_echo():
+			cc.jump_buffer = true
+		elif wheel and cc.wheel_jump and bool(cfg["jump_wheel"]):
+			cc.jump_buffer = true
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		for c in _controllers:
 			if is_instance_valid(c) and (c as CDTController).own_view:
@@ -322,6 +373,111 @@ func _input(event: InputEvent) -> void:
 				if is_instance_valid(c) and (c as CDTController).own_view:
 					Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 					break
+
+# ============================================================================
+#  F1 settings panel
+# ============================================================================
+
+func _toggle_menu() -> void:
+	for c in _controllers:
+		if is_instance_valid(c):
+			(c as CDTController).menu_blocked = not menu_open
+	if menu_open:
+		menu_open = false
+		if _menu_layer != null:
+			_menu_layer.queue_free()
+			_menu_layer = null
+		get_tree().paused = _menu_prev_paused
+		Input.mouse_mode = _menu_prev_mouse
+		save_cfg()
+		return
+	menu_open = true
+	_menu_prev_mouse = Input.mouse_mode
+	_menu_prev_paused = get_tree().paused
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_menu_layer = CanvasLayer.new()
+	_menu_layer.layer = 150
+	add_child(_menu_layer)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0, 0, 0, 0.55)
+	_menu_layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu_layer.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(430, 0)
+	center.add_child(panel)
+	var pad := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, 18)
+	panel.add_child(pad)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	pad.add_child(box)
+	var title := Label.new()
+	title.text = "CdiskTex Engine %s  -  settings" % VERSION
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(1.0, 0.55, 0.15))
+	box.add_child(title)
+	var row := HBoxContainer.new()
+	var lab := Label.new()
+	lab.text = "Movement preset"
+	lab.custom_minimum_size = Vector2(150, 0)
+	row.add_child(lab)
+	var ob := OptionButton.new()
+	for pn in PRESET_ORDER:
+		ob.add_item(pn)
+	ob.selected = maxi(PRESET_ORDER.find(preset_name), 0)
+	ob.item_selected.connect(func(ix: int) -> void: set_preset(PRESET_ORDER[ix], false))
+	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(ob)
+	box.add_child(row)
+	_menu_slider(box, "Sensitivity", "sensitivity", 0.1, 5.0, 0.05)
+	_menu_slider(box, "Field of view", "fov", 50.0, 110.0, 1.0)
+	_menu_check(box, "Autohop (hold jump)", "autohop")
+	_menu_check(box, "Speed HUD", "hud")
+	_menu_check(box, "Crosshair", "crosshair")
+	_menu_check(box, "Mouse wheel jumps", "jump_wheel")
+	var hint := Label.new()
+	hint.text = "F2 or Esc closes.  F4 next preset, F5 autohop in game."
+	hint.add_theme_color_override("font_color", Color(0.6, 0.62, 0.72))
+	box.add_child(hint)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(_toggle_menu)
+	box.add_child(close)
+	_menu_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+
+func _menu_slider(box: VBoxContainer, label: String, key: String, lo: float, hi: float, step: float) -> void:
+	var row := HBoxContainer.new()
+	var l := Label.new()
+	l.text = label
+	l.custom_minimum_size = Vector2(150, 0)
+	row.add_child(l)
+	var sl := HSlider.new()
+	sl.min_value = lo
+	sl.max_value = hi
+	sl.step = step
+	sl.value = float(cfg[key])
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(sl)
+	var v := Label.new()
+	v.custom_minimum_size = Vector2(52, 0)
+	v.text = str(snappedf(sl.value, step))
+	row.add_child(v)
+	sl.value_changed.connect(func(x: float) -> void:
+		cfg[key] = x
+		v.text = str(snappedf(x, step)))
+	box.add_child(row)
+
+func _menu_check(box: VBoxContainer, label: String, key: String) -> void:
+	var cb := CheckBox.new()
+	cb.text = label
+	cb.button_pressed = bool(cfg[key])
+	cb.toggled.connect(func(on: bool) -> void: cfg[key] = on)
+	box.add_child(cb)
 
 # ============================================================================
 #  HUD
@@ -378,13 +534,15 @@ func _update_hud() -> void:
 		return
 	var txt := ""
 	if show and c != null:
-		txt = "SPEED %4d u/s   PRE %4d   HOPS %d   %s%s\n%s | %d tick | sens %s | autohop %s\nF3 hud  F4 preset  F5 autohop  F6/F7 sens" % [
+		txt = "SPEED %4d u/s   PRE %4d   HOPS %d   %s%s\n%s | %d tick | sens %s | autohop %s\nF2 menu  F3 hud  F4 preset  F5 autohop  F6/F7 sens" % [
 			int(c.speed_u()), int(c.last_prespeed), c.bhops, "GROUND" if c.on_ground else "AIR",
 			"  DUCK" if c.ducked else "", preset_name, Engine.physics_ticks_per_second, str(cfg["sensitivity"]),
 			"on" if bool(cfg["autohop"]) else "off"]
 	if _flash_t > 0.0:
 		txt += ("\n" if txt != "" else "") + ">> " + _flash_txt
 	_hud.text = txt
+	var vs := get_viewport().get_visible_rect().size                  # your own HUD keeps the top-left; ours drops to the bottom-left
+	_hud.position = Vector2(14, 10) if (c != null and c.own_view) else Vector2(14, maxf(vs.y - _hud.get_minimum_size().y - 14.0, 10.0))
 
 # ============================================================================
 #  splash (the CdiskTex logo comes first)
@@ -638,6 +796,29 @@ class CDTController extends Node:
 	var jumps_total := 0
 	var on_ladder := false
 	var _foreign_cam: Camera3D
+	var enabled := true                    # false: CDT does not move the body (fly mode ...)
+	var input_blocked := false             # true: ignore keys this tick (menus)
+	var menu_blocked := false              # set by CDT while its F2 panel is open
+	var require_capture := false           # true: no input while the mouse is not captured
+	var wheel_jump := true                 # mouse wheel = jump
+	var hull_ov := {}                      # per-body hull override (units), read from your collision shape
+	var acts := {"forward": "cdt_forward", "back": "cdt_back", "left": "cdt_left", "right": "cdt_right", "jump": "cdt_jump", "duck": "cdt_duck", "walk": "cdt_walk"}
+
+	## Point CDT at your own input actions. Keys: forward back left right jump duck walk. "" = unused.
+	func map_actions(m: Dictionary) -> void:
+		for k in m:
+			if acts.has(k):
+				acts[k] = String(m[k])
+
+	func hv(key: String) -> float:
+		return float(hull_ov.get(key, cfg[key]))
+
+	func _act(k: String) -> bool:
+		var a: String = acts[k]
+		return a != "" and InputMap.has_action(a) and Input.is_action_pressed(a)
+
+	func _axis(neg: String, pos: String) -> float:
+		return (1.0 if _act(pos) else 0.0) - (1.0 if _act(neg) else 0.0)
 
 	func setup(b: CharacterBody3D, c: Dictionary, own: bool) -> void:
 		body = b
@@ -645,6 +826,21 @@ class CDTController extends Node:
 		own_view = own
 		for ch in body.get_children():
 			if ch is CollisionShape3D:
+				if not own and (ch as CollisionShape3D).shape != null and not (ch as CollisionShape3D).disabled and hull_ov.is_empty():
+					var sh: Shape3D = (ch as CollisionShape3D).shape
+					var bw := 0.0
+					var bh := 0.0
+					if sh is CapsuleShape3D:
+						bw = (sh as CapsuleShape3D).radius * 2.0
+						bh = (sh as CapsuleShape3D).height
+					elif sh is BoxShape3D:
+						bw = maxf((sh as BoxShape3D).size.x, (sh as BoxShape3D).size.z)
+						bh = (sh as BoxShape3D).size.y
+					elif sh is CylinderShape3D:
+						bw = (sh as CylinderShape3D).radius * 2.0
+						bh = (sh as CylinderShape3D).height
+					if bw > 0.05 and bh > 0.2:                           # keep YOUR body size, not the 72 unit CS hull
+						hull_ov = {"hull_w": bw / U, "hull_h": bh / U, "hull_duck": bh * 0.75 / U}
 				ch.set_deferred("disabled", true)
 		hull = CollisionShape3D.new()
 		hull.name = "CDT_Hull"
@@ -674,16 +870,20 @@ class CDTController extends Node:
 			head.add_child(cam)
 			cam.current = true
 		else:
-			body.set_physics_process(false)               # CDT drives the body now
 			for n in body.find_children("*", "Camera3D", true, false):
 				_foreign_cam = n
 				break
+			if not body.has_method("_cdt_attached"):
+				body.set_physics_process(false)           # CDT drives the body now (it has no cooperating script)
 		cur_pos = body.global_position
 		prev_pos = cur_pos
+		_apply_hull(false)
+		if not own and body.has_method("_cdt_attached"):
+			body.call("_cdt_attached", self)
 
 	func _apply_hull(duck: bool) -> void:
-		var w := float(cfg["hull_w"]) * U
-		var h := float(cfg["hull_duck"] if duck else cfg["hull_h"]) * U
+		var w := hv("hull_w") * U
+		var h := (hv("hull_duck") if duck else hv("hull_h")) * U
 		box.size = Vector3(w, h, w)
 		hull.position = Vector3(0, h * 0.5, 0)
 
@@ -701,12 +901,12 @@ class CDTController extends Node:
 	# -------------------------------------------------------------- per frame
 
 	func _process(dt: float) -> void:
+		view_comp *= exp(-12.0 * dt)
 		if body == null or not is_instance_valid(body) or not own_view:
 			return
 		var a := Engine.get_physics_interpolation_fraction()
 		var pos := prev_pos.lerp(cur_pos, a)
 		var eye := lerpf(float(cfg["eye"]), float(cfg["eye_duck"]), smoothstep(0.0, 1.0, duck_t)) * U
-		view_comp *= exp(-12.0 * dt)
 		head.global_position = pos + Vector3(0, eye + view_comp, 0)
 		head.rotation = Vector3(0, yaw, 0)
 		cam.rotation = Vector3(pitch, 0, 0)
@@ -718,16 +918,20 @@ class CDTController extends Node:
 			queue_free()
 			return
 		prev_pos = cur_pos
+		if not enabled:
+			cur_pos = body.global_position
+			jump_buffer = false
+			return
 		if not own_view:
 			if _foreign_cam != null and is_instance_valid(_foreign_cam):
 				yaw = _foreign_cam.global_rotation.y
 			else:
 				yaw = body.global_rotation.y
-		var captured_ok := (not own_view) or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-		var f := Input.get_axis("cdt_back", "cdt_forward") if captured_ok else 0.0
-		var s := Input.get_axis("cdt_left", "cdt_right") if captured_ok else 0.0
-		var walk := Input.is_action_pressed("cdt_walk") and captured_ok
-		jump_held = Input.is_action_pressed("cdt_jump") and captured_ok
+		var captured_ok: bool = ((not own_view and not require_capture) or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED) and not input_blocked and not menu_blocked
+		var f := _axis("back", "forward") if captured_ok else 0.0
+		var s := _axis("left", "right") if captured_ok else 0.0
+		var walk := _act("walk") and captured_ok
+		jump_held = _act("jump") and captured_ok
 		var pressed := jump_buffer and captured_ok
 		jump_buffer = false
 		var g := float(cfg["gravity"]) * U
@@ -737,7 +941,7 @@ class CDTController extends Node:
 		var ladder := _find_ladder()
 		on_ladder = ladder != null
 		body.velocity.y -= g * 0.5 * dt                                   # StartGravity
-		_update_duck(captured_ok and Input.is_action_pressed("cdt_duck"))
+		_update_duck(captured_ok and _act("duck"))
 
 		var jumped := false
 		if on_ladder:
@@ -896,7 +1100,7 @@ class CDTController extends Node:
 					view_comp += d
 
 	func _update_duck(want: bool) -> void:
-		var diff := (float(cfg["hull_h"]) - float(cfg["hull_duck"])) * U
+		var diff := (hv("hull_h") - hv("hull_duck")) * U
 		if want and not ducked:
 			ducked = true
 			if not on_ground:
@@ -913,8 +1117,8 @@ class CDTController extends Node:
 				_apply_hull(false)
 
 	func _room_to_stand(shift: float) -> bool:
-		var w := float(cfg["hull_w"]) * U
-		var h := float(cfg["hull_h"]) * U
+		var w := hv("hull_w") * U
+		var h := hv("hull_h") * U
 		var sh := BoxShape3D.new()
 		sh.size = Vector3(w - 0.004, h - 0.01, w - 0.004)
 		var q := PhysicsShapeQueryParameters3D.new()
